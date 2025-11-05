@@ -151,7 +151,7 @@ If you are in the European Economic Area (EEA), you have the following rights:
 
 ### 1. Right to Access
 - Request a copy of your personal data
-- Email support@haloapp.com with subject "Data Access Request"
+- Email tim@archeron.tech with subject "Data Access Request"
 
 ### 2. Right to Rectification
 - Correct inaccurate or incomplete data
@@ -160,14 +160,14 @@ If you are in the European Economic Area (EEA), you have the following rights:
 ### 3. Right to Erasure ("Right to be Forgotten")
 - Delete your account and all associated data
 - Go to Settings → Account → Delete Account
-- Or email support@haloapp.com
+- Or email tim@archeron.tech
 
 ### 4. Right to Restrict Processing
 - Limit how we process your data
 
 ### 5. Right to Data Portability
 - Receive your data in a machine-readable format
-- Email support@haloapp.com with subject "Data Export Request"
+- Email tim@archeron.tech with subject "Data Export Request"
 
 ### 6. Right to Object
 - Object to processing of your data for certain purposes
@@ -176,7 +176,7 @@ If you are in the European Economic Area (EEA), you have the following rights:
 - Withdraw consent for data processing at any time
 
 **To exercise any of these rights, contact us at:**
-Email: privacy@haloapp.com
+Email: tim@archeron.tech
 Response time: Within 30 days
 
 ---
@@ -231,7 +231,7 @@ You can revoke location permission at any time in device Settings.
 
 Halo is not intended for children under 17.
 
-We do not knowingly collect personal information from children under 17. If you are a parent or guardian and believe your child has provided us with personal information, please contact us at privacy@haloapp.com.
+We do not knowingly collect personal information from children under 17. If you are a parent or guardian and believe your child has provided us with personal information, please contact us at tim@archeron.tech.
 
 If we become aware that we have collected personal information from a child under 17, we will take steps to delete such information.
 
@@ -279,7 +279,7 @@ If you are a California resident, you have the following rights:
 - We will not discriminate against you for exercising your rights
 
 **To exercise these rights:**
-Email: privacy@haloapp.com
+Email: tim@archeron.tech
 Subject: "California Privacy Request"
 
 ---
@@ -314,12 +314,12 @@ We may update this Privacy Policy from time to time. Changes will be posted on t
 
 If you have questions about this Privacy Policy or our privacy practices, please contact us:
 
-**Email:** privacy@haloapp.com
-**Support:** support@haloapp.com
+**Email:** tim@archeron.tech
+**Support:** tim@archeron.tech
 **Address:** Archeron Technologies AB, Sweden
 
 **Data Protection Officer:**
-Email: dpo@haloapp.com
+Email: tim@archeron.tech
 
 **Response Time:** We will respond to privacy inquiries within 30 days.
 
