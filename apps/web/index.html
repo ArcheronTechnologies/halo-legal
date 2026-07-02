@@ -48,6 +48,13 @@
         </div>
       </section>
 
+      <!-- Persistent nav between the three post-onboarding screens -->
+      <nav id="appNav" class="app-nav" hidden>
+        <button id="navLiveBtn" type="button" class="nav-btn" aria-current="page">Live</button>
+        <button id="navHistoryBtn" type="button" class="nav-btn">History</button>
+        <button id="navSettingsBtn" type="button" class="nav-btn">Settings</button>
+      </nav>
+
       <!-- Screen 3: main / live session -->
       <section id="mainScreen" class="screen" hidden>
         <div class="capture-area">
@@ -100,6 +107,63 @@
           Video is processed only in memory in this browser tab and is never uploaded or recorded.
           Only the session summary and derived numbers below are saved locally, on this device.
         </p>
+      </section>
+
+      <!-- Screen 4: history / trends (PLAN.md §10 Phase 2 "the development requirement") -->
+      <section id="historyScreen" class="screen" hidden>
+        <h2>History</h2>
+        <p id="trendSummary" class="status-line" aria-live="polite"></p>
+
+        <h3>Stress index over time</h3>
+        <div id="trendChartContainer" class="chart-container"></div>
+
+        <h3>Time of day</h3>
+        <div id="heatmapContainer" class="chart-container heatmap-container"></div>
+
+        <h3>Sessions</h3>
+        <ul id="sessionList" class="session-list"></ul>
+      </section>
+
+      <!-- Screen 5: settings (PLAN.md §7 data control + §8 settings) -->
+      <section id="settingsScreen" class="screen" hidden>
+        <h2>Settings</h2>
+
+        <form id="settingsForm">
+          <label class="field">
+            <span>Retention (days)</span>
+            <input id="retentionDaysInput" type="number" min="1" step="1" />
+          </label>
+          <label class="field">
+            <span>Sensitivity</span>
+            <input id="sensitivityInput" type="range" min="0" max="1" step="0.05" />
+          </label>
+          <label class="field">
+            <span>Theme</span>
+            <select id="themeSelect">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <div class="controls">
+            <button id="settingsSaveBtn" type="submit">Save</button>
+            <span id="settingsSaveStatus" class="status-line" aria-live="polite"></span>
+          </div>
+        </form>
+
+        <h3>Your data</h3>
+        <p class="privacy-note">
+          Export everything as a file you keep, or delete it all. Nothing here is ever sent
+          anywhere else.
+        </p>
+        <div class="controls">
+          <button id="exportJsonBtn" type="button">Export JSON</button>
+          <button id="exportCsvBtn" type="button">Export CSV</button>
+        </div>
+        <div class="controls">
+          <button id="deleteAllBtn" type="button" class="danger">Delete all data</button>
+          <button id="revokeConsentBtn" type="button" class="danger">Revoke consent</button>
+        </div>
       </section>
     </main>
     <script type="module" src="/src/main.ts"></script>

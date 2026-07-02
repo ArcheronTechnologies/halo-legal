@@ -22,3 +22,19 @@ export async function listSessions(db: HaloPulseDb, profileId: string): Promise<
 export async function getSamplesForSession(db: HaloPulseDb, sessionId: string): Promise<Sample[]> {
   return db.samples.where("sessionId").equals(sessionId).sortBy("t");
 }
+
+/**
+ * All samples across every session belonging to a profile. Dexie has no join, so this fetches
+ * the profile's session ids first and filters a full table scan in JS — fine at personal-app
+ * data volumes (ARCHITECTURE.md §6), and shared by rollups/export/history so the "how do I get a
+ * profile's samples" logic exists exactly once.
+ */
+export async function getAllSamplesForProfile(
+  db: HaloPulseDb,
+  profileId: string,
+): Promise<Sample[]> {
+  const sessionIds = new Set(await db.sessions.where("profileId").equals(profileId).primaryKeys());
+  if (sessionIds.size === 0) return [];
+  const allSamples = await db.samples.toArray();
+  return allSamples.filter((s) => sessionIds.has(s.sessionId));
+}

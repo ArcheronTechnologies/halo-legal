@@ -1,16 +1,34 @@
 import type { Baseline, Sample } from "@halo-pulse/types";
 import { CalibrationCollector } from "./calibration/collector.js";
 import { finalizeCalibration } from "./calibration/runCalibration.js";
+import { samplesToCsv, sessionsToCsv } from "./export/csv.js";
+import { downloadTextFile } from "./export/download.js";
 import { getGaugeElements, resetStressGauge, updateStressGauge } from "./gauge.js";
+import { computeTimeOfDayHeatmap } from "./history/heatmap.js";
+import { getHistoryScreenElements, renderHistoryScreen } from "./history/historyView.js";
+import { detectTrend } from "./history/trend.js";
 import { clearOverlay, drawRoiOverlay } from "./overlay.js";
 import { type PipelineSession, startPipelineSession } from "./pipelineSession.js";
 import { computeStressIndex } from "./scoring/composite.js";
 import type { WindowFeatures } from "./scoring/features.js";
 import { buildSessionSummary } from "./sessionSummary.js";
+import {
+  getSettingsScreenElements,
+  readSettingsForm,
+  renderSettingsForm,
+} from "./settings/settingsView.js";
 import { getActiveBaseline } from "./store/baselines.js";
 import { db, LOCAL_PROFILE_ID } from "./store/db.js";
-import { saveSession } from "./store/sessions.js";
-import { grantConsent, hasConsent } from "./store/settings.js";
+import { buildExportBundle, deleteAllData } from "./store/exportData.js";
+import { recomputeRollups } from "./store/rollups.js";
+import { getAllSamplesForProfile, listSessions, saveSession } from "./store/sessions.js";
+import {
+  getOrCreateSettings,
+  grantConsent,
+  hasConsent,
+  revokeConsent,
+  updateSettings,
+} from "./store/settings.js";
 
 // Phase 1 (PLAN.md §10): consent -> calibration -> a live, baseline-relative Stress Index, with
 // session summaries persisted locally. The classical rPPG + behavioural pipeline itself runs in
@@ -25,6 +43,13 @@ const GAUGE_SMOOTHING_ALPHA = 0.3; // EMA weight for the newest reading (PLAN.md
 const consentScreen = document.getElementById("consentScreen") as HTMLElement;
 const calibrationScreen = document.getElementById("calibrationScreen") as HTMLElement;
 const mainScreen = document.getElementById("mainScreen") as HTMLElement;
+const historyScreen = document.getElementById("historyScreen") as HTMLElement;
+const settingsScreen = document.getElementById("settingsScreen") as HTMLElement;
+
+const appNav = document.getElementById("appNav") as HTMLElement;
+const navLiveBtn = document.getElementById("navLiveBtn") as HTMLButtonElement;
+const navHistoryBtn = document.getElementById("navHistoryBtn") as HTMLButtonElement;
+const navSettingsBtn = document.getElementById("navSettingsBtn") as HTMLButtonElement;
 
 const consentBtn = document.getElementById("consentBtn") as HTMLButtonElement;
 
@@ -46,12 +71,28 @@ const overlayToggle = document.getElementById("overlayToggle") as HTMLInputEleme
 
 const overlayCtx = overlayEl.getContext("2d") as CanvasRenderingContext2D;
 const gaugeElements = getGaugeElements(document);
+const historyElements = getHistoryScreenElements(document);
+const settingsElements = getSettingsScreenElements(document);
+const settingsForm = document.getElementById("settingsForm") as HTMLFormElement;
 
-type Screen = "consent" | "calibration" | "main";
+type Screen = "consent" | "calibration" | "main" | "history" | "settings";
 function showScreen(screen: Screen): void {
   consentScreen.hidden = screen !== "consent";
   calibrationScreen.hidden = screen !== "calibration";
   mainScreen.hidden = screen !== "main";
+  historyScreen.hidden = screen !== "history";
+  settingsScreen.hidden = screen !== "settings";
+
+  const navScreens = {
+    main: navLiveBtn,
+    history: navHistoryBtn,
+    settings: navSettingsBtn,
+  } as const;
+  appNav.hidden = !(screen in navScreens);
+  for (const [s, btn] of Object.entries(navScreens)) {
+    if (s === screen) btn.setAttribute("aria-current", "page");
+    else btn.removeAttribute("aria-current");
+  }
 }
 
 // --- Boot: figure out which screen to show first ---
@@ -290,6 +331,96 @@ recalibrateBtn.addEventListener("click", () => {
   if (liveSession) stopLive();
   showScreen("calibration");
   startCalibration();
+});
+
+// --- History screen (PLAN.md §10 Phase 2 "the development requirement") ---
+async function refreshHistoryScreen(): Promise<void> {
+  // Recomputed here (not just after each live session) so History is always correct regardless
+  // of how session data arrived — including a future import, or data seeded some other way.
+  const [sessions, rollups, samples] = await Promise.all([
+    listSessions(db, LOCAL_PROFILE_ID),
+    recomputeRollups(db, LOCAL_PROFILE_ID),
+    getAllSamplesForProfile(db, LOCAL_PROFILE_ID),
+  ]);
+  renderHistoryScreen(historyElements, {
+    sessions,
+    rollups,
+    heatmapCells: computeTimeOfDayHeatmap(samples),
+    trend: detectTrend(rollups),
+  });
+}
+
+navHistoryBtn.addEventListener("click", () => {
+  showScreen("history");
+  refreshHistoryScreen().catch((err) => console.error("failed to load history:", err));
+});
+
+// --- Settings screen (PLAN.md §7 data control) ---
+async function refreshSettingsScreen(): Promise<void> {
+  const settings = await getOrCreateSettings(db);
+  renderSettingsForm(settingsElements, settings);
+  settingsElements.saveStatus.textContent = "";
+}
+
+navSettingsBtn.addEventListener("click", () => {
+  showScreen("settings");
+  refreshSettingsScreen().catch((err) => console.error("failed to load settings:", err));
+});
+
+navLiveBtn.addEventListener("click", () => showScreen("main"));
+
+settingsForm.addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const patch = readSettingsForm(settingsElements);
+  updateSettings(db, patch)
+    .then(() => {
+      settingsElements.saveStatus.textContent = "Saved.";
+    })
+    .catch((err) => {
+      settingsElements.saveStatus.textContent = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    });
+});
+
+settingsElements.exportJsonBtn.addEventListener("click", () => {
+  buildExportBundle(db, LOCAL_PROFILE_ID, Date.now())
+    .then((bundle) => {
+      downloadTextFile(
+        `halo-pulse-export-${Date.now()}.json`,
+        JSON.stringify(bundle, null, 2),
+        "application/json",
+      );
+    })
+    .catch((err) => console.error("export failed:", err));
+});
+
+settingsElements.exportCsvBtn.addEventListener("click", () => {
+  Promise.all([listSessions(db, LOCAL_PROFILE_ID), getAllSamplesForProfile(db, LOCAL_PROFILE_ID)])
+    .then(([sessions, samples]) => {
+      downloadTextFile(
+        `halo-pulse-sessions-${Date.now()}.csv`,
+        sessionsToCsv(sessions),
+        "text/csv",
+      );
+      downloadTextFile(`halo-pulse-samples-${Date.now()}.csv`, samplesToCsv(samples), "text/csv");
+    })
+    .catch((err) => console.error("export failed:", err));
+});
+
+settingsElements.deleteAllBtn.addEventListener("click", () => {
+  if (!confirm("Delete all sessions, baselines, and history? This cannot be undone.")) return;
+  deleteAllData(db, LOCAL_PROFILE_ID)
+    .then(() => {
+      showScreen("calibration");
+      startCalibration();
+    })
+    .catch((err) => console.error("delete failed:", err));
+});
+
+settingsElements.revokeConsentBtn.addEventListener("click", () => {
+  if (!confirm("Revoke consent? You will need to consent again before using the camera.")) return;
+  revokeConsent(db)
+    .then(() => showScreen("consent"))
+    .catch((err) => console.error("revoke consent failed:", err));
 });
 
 boot().catch((err) => {

@@ -18,6 +18,10 @@
 
   --gauge-track: #b7d3f6; /* sequential step 150 */
   --gauge-fill: #2a78d6; /* sequential step 450, the default anchor */
+
+  --chart-gridline: #e1e0d9;
+  --chart-crosshair: #898781;
+  --danger: #d03b3b; /* status "critical" step — reserved for destructive actions only */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -31,6 +35,10 @@
 
     --gauge-track: #184f95; /* sequential step 600 (dark-mode floor per palette.md) */
     --gauge-fill: #3987e5; /* categorical slot-1 dark hex, same hue family */
+
+    --chart-gridline: #2c2c2a;
+    --chart-crosshair: #898781;
+    --danger: #e66767; /* status "critical" dark step */
   }
 }
 
@@ -224,4 +232,202 @@ button:disabled {
   font-size: 0.75rem;
   color: var(--text-muted);
   margin-top: 1.5rem;
+}
+
+/* --- Nav (History/Settings, Phase 2) --- */
+
+.app-nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.nav-btn[aria-current="page"] {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* --- Trend chart (hand-rolled SVG, dataviz skill: thin line + recessive grid + hover) --- */
+
+.chart-container {
+  position: relative;
+  margin: 0.5rem 0 1.5rem;
+}
+
+.trend-chart {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-gridline {
+  stroke: var(--chart-gridline);
+  stroke-width: 1;
+}
+
+.chart-axis-label {
+  font-size: 8px;
+  fill: var(--text-muted);
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--gauge-fill);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-point {
+  fill: var(--surface-1);
+  stroke: var(--gauge-fill);
+  stroke-width: 2;
+}
+
+.chart-crosshair {
+  stroke: var(--chart-crosshair);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+
+.chart-hit-area {
+  fill: transparent;
+  cursor: crosshair;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -100%);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.chart-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* --- Time-of-day heatmap --- */
+
+.heatmap-container {
+  overflow-x: auto;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: 28px repeat(24, minmax(10px, 1fr));
+  gap: 2px;
+  min-width: 420px;
+}
+
+.heatmap-corner {
+  height: 14px;
+}
+
+.heatmap-hour-label,
+.heatmap-day-label {
+  font-size: 8px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heatmap-day-label {
+  justify-content: flex-start;
+}
+
+.heatmap-cell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+}
+
+.heatmap-cell--empty {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--border),
+    var(--border) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+/* --- Session list --- */
+
+.session-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.5rem 0 1.5rem;
+}
+
+.session-row {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+  font-size: 0.85rem;
+}
+
+.session-date {
+  color: var(--text-secondary);
+}
+
+.session-mean,
+.session-peak {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.session-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* --- Settings form --- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.9rem;
+}
+
+.field input,
+.field select {
+  font: inherit;
+  padding: 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
 }

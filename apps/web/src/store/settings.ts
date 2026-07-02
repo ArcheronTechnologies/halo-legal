@@ -40,3 +40,14 @@ export async function revokeConsent(db: HaloPulseDb): Promise<Settings> {
   await db.settings.put(updated);
   return updated;
 }
+
+/** Patches user-editable preferences (retention/sensitivity/theme) without touching consent. */
+export async function updateSettings(
+  db: HaloPulseDb,
+  patch: Partial<Pick<Settings, "retentionDays" | "sensitivity" | "theme" | "featureFlags">>,
+): Promise<Settings> {
+  const settings = await getOrCreateSettings(db);
+  const updated: Settings = { ...settings, ...patch };
+  await db.settings.put(updated);
+  return updated;
+}
