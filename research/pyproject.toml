@@ -1,0 +1,33 @@
+[project]
+name = "halo-pulse-research"
+version = "0.0.0"
+description = "Offline research harness: rPPG/HRV algorithm development and validation. Never shipped with the product — see ARCHITECTURE.md §8."
+requires-python = "==3.12.*"
+dependencies = [
+  "numpy>=1.26",
+  "scipy>=1.12",
+  "pandas>=2.2",
+  "neurokit2>=0.2.10",
+  "heartpy>=1.2.7",
+  "scikit-learn>=1.4",
+  "matplotlib>=3.8",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+# opencv-python and mediapipe (Python) are intentionally not listed here yet — they're heavy,
+# platform-specific wheels only needed once real capture/dataset video is being processed
+# (VALIDATION.md §4), not for the pure-DSP reference implementations in rppg/. Add them when that
+# work starts: `uv add opencv-python mediapipe`.
+#
+# rPPG-Toolbox and pyVHR (RAIL / GPL-3.0 respectively — see RESEARCH.md §A, §F, ADR-0005) are
+# reference/benchmark tools, not pip dependencies of this project: clone them separately when
+# running the §9 validation benchmarks, and never import them from anything that ships in
+# apps/web or packages/*.
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

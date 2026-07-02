@@ -1,0 +1,43 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+.DS_Store
+
+# build artifacts
+*.tsbuildinfo
+coverage/
+
+# Vite
+.vite/
+
+# Vendored MediaPipe WASM runtime + model (large binaries; fetched via `pnpm setup:assets`)
+apps/web/public/models/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# env
+.env
+.env.local
+
+# Python harness
+research/.venv/
+research/__pycache__/
+research/**/__pycache__/
+research/*.egg-info/
+research/.pytest_cache/
+research/.ruff_cache/
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

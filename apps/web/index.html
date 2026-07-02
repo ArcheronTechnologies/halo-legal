@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Halo Pulse — Phase 0 spike</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>Halo Pulse — Phase 0 spike</h1>
+        <p class="disclaimer">
+          Personal wellness prototype. Not a medical device. See
+          <a href="https://github.com/ArcheronTechnologies/halo-legal/blob/main/PLAN.md" target="_blank" rel="noopener">PLAN.md</a>.
+        </p>
+      </header>
+
+      <section class="capture-area">
+        <div class="video-wrap">
+          <video id="video" autoplay playsinline muted></video>
+          <canvas id="overlay"></canvas>
+        </div>
+
+        <div class="readout" aria-live="polite">
+          <div class="stat">
+            <span class="label">Status</span>
+            <span id="status" class="value">Idle</span>
+          </div>
+          <div class="stat">
+            <span class="label">Heart rate</span>
+            <span id="hr" class="value">--</span>
+            <span class="unit">bpm</span>
+          </div>
+          <div class="stat">
+            <span class="label">Signal quality</span>
+            <span id="sqi" class="value">--</span>
+          </div>
+          <div class="stat">
+            <span class="label">Method</span>
+            <span id="method" class="value">pos</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="controls">
+        <button id="startBtn" type="button">Start camera</button>
+        <button id="stopBtn" type="button" disabled>Stop</button>
+        <label>
+          <input type="checkbox" id="overlayToggle" checked />
+          Show ROI overlay
+        </label>
+      </div>
+
+      <p class="privacy-note">
+        Video is processed only in memory in this browser tab and is never uploaded or recorded.
+        Nothing is stored yet in this Phase 0 spike — persistence lands in Phase 1.
+      </p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
