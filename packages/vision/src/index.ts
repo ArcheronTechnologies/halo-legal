@@ -1,3 +1,4 @@
+export * from "./behaviouralWindow.js";
 export * from "./blendshapes.js";
 export * from "./geometry.js";
 export * from "./landmarker.js";

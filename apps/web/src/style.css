@@ -1,6 +1,37 @@
+/*
+ * Palette: dataviz skill reference instance (references/palette.md). This gauge is a "Meter —
+ * same-ramp track": ONE hue (blue), fill amount carries the value. Deliberately not a multi-hue
+ * status ramp (good/warning/serious/critical) across the four bands — PLAN.md's "never
+ * pathologizing, non-alarming" tone requirement overrides the generic status-color allowance for
+ * a state-like series; band names are plain text (never color-alone), never status-red-coded.
+ */
 :root {
   color-scheme: light dark;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --surface-1: #fcfcfb;
+  --page: #f9f9f7;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --border: rgba(11, 11, 11, 0.1);
+
+  --gauge-track: #b7d3f6; /* sequential step 150 */
+  --gauge-fill: #2a78d6; /* sequential step 450, the default anchor */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --border: rgba(255, 255, 255, 0.1);
+
+    --gauge-track: #184f95; /* sequential step 600 (dark-mode floor per palette.md) */
+    --gauge-fill: #3987e5; /* categorical slot-1 dark hex, same hue family */
+  }
 }
 
 body {
@@ -8,6 +39,8 @@ body {
   padding: 2rem;
   display: flex;
   justify-content: center;
+  background: var(--page);
+  color: var(--text-primary);
 }
 
 .app {
@@ -20,10 +53,53 @@ h1 {
   margin-bottom: 0.25rem;
 }
 
+h2 {
+  font-size: 1.1rem;
+}
+
 .disclaimer {
   font-size: 0.8rem;
-  opacity: 0.7;
+  color: var(--text-secondary);
   margin-top: 0;
+}
+
+.screen {
+  display: block;
+}
+
+.screen[hidden] {
+  display: none;
+}
+
+.consent-points {
+  padding-left: 1.25rem;
+  line-height: 1.5;
+}
+
+.consent-points li {
+  margin-bottom: 0.5rem;
+}
+
+.status-line {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  min-height: 1.2em;
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--gauge-track);
+  overflow: hidden;
+  margin: 0.5rem 0 1rem;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--gauge-fill);
+  transition: width 0.5s linear;
 }
 
 .video-wrap {
@@ -51,6 +127,45 @@ canvas#overlay {
   pointer-events: none;
 }
 
+.gauge-wrap {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+#stressGauge {
+  width: 100%;
+  max-width: 320px;
+}
+
+.gauge-track {
+  fill: none;
+  stroke: var(--gauge-track);
+  stroke-width: 16;
+  stroke-linecap: round;
+}
+
+.gauge-fill {
+  fill: none;
+  stroke: var(--gauge-fill);
+  stroke-width: 16;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100; /* starts empty; gauge.ts animates this toward (100 - value) */
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.gauge-value {
+  font-size: 2rem;
+  font-weight: 600;
+  fill: var(--text-primary);
+}
+
+.gauge-band {
+  font-size: 0.85rem;
+  fill: var(--text-secondary);
+}
+
 .readout {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -59,15 +174,16 @@ canvas#overlay {
 }
 
 .stat {
-  border: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.75rem;
+  background: var(--surface-1);
 }
 
 .stat .label {
   display: block;
   font-size: 0.75rem;
-  opacity: 0.65;
+  color: var(--text-muted);
 }
 
 .stat .value {
@@ -77,7 +193,7 @@ canvas#overlay {
 
 .stat .unit {
   font-size: 0.8rem;
-  opacity: 0.65;
+  color: var(--text-muted);
   margin-left: 0.25rem;
 }
 
@@ -92,8 +208,9 @@ canvas#overlay {
 button {
   padding: 0.5rem 1rem;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border: 1px solid var(--border);
   background: transparent;
+  color: var(--text-primary);
   cursor: pointer;
   font: inherit;
 }
@@ -105,6 +222,6 @@ button:disabled {
 
 .privacy-note {
   font-size: 0.75rem;
-  opacity: 0.6;
+  color: var(--text-muted);
   margin-top: 1.5rem;
 }

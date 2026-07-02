@@ -49,6 +49,16 @@ export interface RppgWindowResult {
   quality: SignalQuality;
 }
 
+/** A single per-frame behavioural (blendshape-derived) sample, ready for windowing. */
+export interface BehaviouralSample {
+  /** Presentation timestamp in seconds — same timeline as RoiSample.t. */
+  t: number;
+  browTension: number;
+  lidTension: number;
+  lipTension: number;
+  blinking: boolean;
+}
+
 /** Behavioural (facial-tension) features for one window — always scored as deviation from baseline. */
 export interface BehaviouralWindowResult {
   windowStart: number;
@@ -57,5 +67,16 @@ export interface BehaviouralWindowResult {
   lidTension: number;
   lipTension: number;
   blinkRateHz: number;
-  headStillnessDeviation: number;
+  /**
+   * Variability of inter-blink intervals within the window, ms — a blink-rate analogue of HRV
+   * (PLAN.md §2.2). `null` when fewer than 3 blinks occurred in the window.
+   */
+  blinkIntervalVariabilityMs: number | null;
+  /**
+   * Not yet computed (no head-pose extraction in Phase 1 — ARCHITECTURE.md §3 leaves the
+   * transformation matrix off). Omitted, not defaulted to 0, so "not measured" is never confused
+   * with "measured, found to be zero."
+   */
+  headStillnessDeviation?: number;
+  sampleCount: number;
 }

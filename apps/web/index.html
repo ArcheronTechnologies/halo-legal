@@ -3,59 +3,104 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Halo Pulse — Phase 0 spike</title>
+    <title>Halo Pulse</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <main class="app">
       <header>
-        <h1>Halo Pulse — Phase 0 spike</h1>
+        <h1>Halo Pulse</h1>
         <p class="disclaimer">
-          Personal wellness prototype. Not a medical device. See
+          Personal wellness prototype. Not a medical device, and not an emotion reading — see
           <a href="https://github.com/ArcheronTechnologies/halo-legal/blob/main/PLAN.md" target="_blank" rel="noopener">PLAN.md</a>.
         </p>
       </header>
 
-      <section class="capture-area">
-        <div class="video-wrap">
-          <video id="video" autoplay playsinline muted></video>
-          <canvas id="overlay"></canvas>
-        </div>
+      <!-- Screen 1: consent gate (PLAN.md §7 — explicit, revocable consent before first capture) -->
+      <section id="consentScreen" class="screen" hidden>
+        <h2>Before you start</h2>
+        <ul class="consent-points">
+          <li>Your camera is processed only in memory, in this browser tab. Video is never uploaded, recorded, or sent anywhere.</li>
+          <li>Only derived numbers (heart rate, tension estimates, a stress index) are ever saved — never a frame, image, or face template.</li>
+          <li>This is a personal self-tracking tool: not a diagnosis, not an emotion reading, not for use on anyone but yourself.</li>
+          <li>You can revoke consent, export, or delete everything at any time.</li>
+        </ul>
+        <button id="consentBtn" type="button">I understand, continue</button>
+      </section>
 
-        <div class="readout" aria-live="polite">
-          <div class="stat">
-            <span class="label">Status</span>
-            <span id="status" class="value">Idle</span>
-          </div>
-          <div class="stat">
-            <span class="label">Heart rate</span>
-            <span id="hr" class="value">--</span>
-            <span class="unit">bpm</span>
-          </div>
-          <div class="stat">
-            <span class="label">Signal quality</span>
-            <span id="sqi" class="value">--</span>
-          </div>
-          <div class="stat">
-            <span class="label">Method</span>
-            <span id="method" class="value">pos</span>
-          </div>
+      <!-- Screen 2: calibration (PLAN.md §6 — a short guided rest recording) -->
+      <section id="calibrationScreen" class="screen" hidden>
+        <h2>Calibration</h2>
+        <p>
+          Sit still, relax, and look at the camera for about a minute. This builds your personal
+          baseline — everything else is measured as a change from <em>this</em>, not an absolute
+          number.
+        </p>
+        <div class="video-wrap">
+          <video id="calibrationVideo" autoplay playsinline muted></video>
+        </div>
+        <p id="calibrationStatus" class="status-line" aria-live="polite">Preparing...</p>
+        <div class="progress-track">
+          <div id="calibrationProgress" class="progress-fill"></div>
+        </div>
+        <div class="controls">
+          <button id="calibrationCancelBtn" type="button">Cancel</button>
         </div>
       </section>
 
-      <div class="controls">
-        <button id="startBtn" type="button">Start camera</button>
-        <button id="stopBtn" type="button" disabled>Stop</button>
-        <label>
-          <input type="checkbox" id="overlayToggle" checked />
-          Show ROI overlay
-        </label>
-      </div>
+      <!-- Screen 3: main / live session -->
+      <section id="mainScreen" class="screen" hidden>
+        <div class="capture-area">
+          <div class="video-wrap">
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="overlay"></canvas>
+          </div>
 
-      <p class="privacy-note">
-        Video is processed only in memory in this browser tab and is never uploaded or recorded.
-        Nothing is stored yet in this Phase 0 spike — persistence lands in Phase 1.
-      </p>
+          <div class="gauge-wrap">
+            <svg id="stressGauge" viewBox="0 0 200 120" role="img" aria-label="Stress index gauge">
+              <path class="gauge-track" d="M 20 100 A 80 80 0 0 1 180 100" />
+              <path id="gaugeFill" class="gauge-fill" pathLength="100" d="M 20 100 A 80 80 0 0 1 180 100" />
+              <text id="gaugeValue" x="100" y="90" text-anchor="middle" class="gauge-value">--</text>
+              <text id="gaugeBand" x="100" y="110" text-anchor="middle" class="gauge-band">Not calibrated</text>
+            </svg>
+          </div>
+
+          <div class="readout" aria-live="polite">
+            <div class="stat">
+              <span class="label">Status</span>
+              <span id="status" class="value">Idle</span>
+            </div>
+            <div class="stat">
+              <span class="label">Heart rate</span>
+              <span id="hr" class="value">--</span>
+              <span class="unit">bpm</span>
+            </div>
+            <div class="stat">
+              <span class="label">Signal quality</span>
+              <span id="sqi" class="value">--</span>
+            </div>
+            <div class="stat">
+              <span class="label">Layer</span>
+              <span id="method" class="value">--</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="startBtn" type="button">Start session</button>
+          <button id="stopBtn" type="button" disabled>Stop</button>
+          <button id="recalibrateBtn" type="button">Re-calibrate</button>
+          <label>
+            <input type="checkbox" id="overlayToggle" checked />
+            Show ROI overlay
+          </label>
+        </div>
+
+        <p class="privacy-note">
+          Video is processed only in memory in this browser tab and is never uploaded or recorded.
+          Only the session summary and derived numbers below are saved locally, on this device.
+        </p>
+      </section>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

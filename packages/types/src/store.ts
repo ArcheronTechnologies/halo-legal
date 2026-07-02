@@ -29,8 +29,13 @@ export const baselineSchema = z.object({
   blinkRateMean: z.number(),
   blinkRateSd: z.number().nonnegative(),
   browTensionMean: z.number(),
+  browTensionSd: z.number().nonnegative(),
   lidTensionMean: z.number(),
+  lidTensionSd: z.number().nonnegative(),
   lipTensionMean: z.number(),
+  lipTensionSd: z.number().nonnegative(),
+  /** How many valid feature windows the calibration session collected — see PLAN.md §6. */
+  windowCount: z.number().int().positive(),
   captureConditions: captureConditionsSchema,
 });
 export type Baseline = z.infer<typeof baselineSchema>;
@@ -62,7 +67,12 @@ export const behaviouralFeaturesSchema = z.object({
   browTension: z.number(),
   lidTension: z.number(),
   lipTension: z.number(),
-  headStillnessDeviation: z.number(),
+  /**
+   * Not yet computed (Phase 1 does not extract head-pose data — ARCHITECTURE.md §3 leaves the
+   * transformation matrix off) — omitted, not defaulted to 0, so "not measured" is never
+   * confused with "measured, found to be zero."
+   */
+  headStillnessDeviation: z.number().optional(),
 });
 
 export const sampleSchema = z.object({
