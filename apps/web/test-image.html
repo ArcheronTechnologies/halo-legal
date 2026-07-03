@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Halo Pulse — MediaPipe image smoke test</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <style>
+      /* This page shows a static <img>, not the mirrored live camera preview — undo the mirror. */
+      #sourceImage,
+      #overlay {
+        transform: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <h1>MediaPipe image smoke test</h1>
+      <p class="disclaimer">
+        Diagnostic-only page (not part of the product UI): runs the self-hosted Face Landmarker in
+        IMAGE mode against a static photo to verify real landmark/blendshape/ROI extraction without
+        needing a live webcam. Load an image via <code>?src=/path/or/url.jpg</code>.
+      </p>
+      <div class="video-wrap">
+        <img id="sourceImage" alt="test source" style="width: 100%; height: 100%; object-fit: contain" />
+        <canvas id="overlay"></canvas>
+      </div>
+      <pre id="output" style="white-space: pre-wrap; font-size: 0.8rem"></pre>
+    </main>
+    <script type="module" src="/src/test-image.ts"></script>
+  </body>
+</html>

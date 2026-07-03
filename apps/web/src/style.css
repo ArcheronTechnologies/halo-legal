@@ -1,0 +1,569 @@
+/*
+ * Palette: dataviz skill reference instance (references/palette.md). This gauge is a "Meter —
+ * same-ramp track": ONE hue (blue), fill amount carries the value. Deliberately not a multi-hue
+ * status ramp (good/warning/serious/critical) across the four bands — PLAN.md's "never
+ * pathologizing, non-alarming" tone requirement overrides the generic status-color allowance for
+ * a state-like series; band names are plain text (never color-alone), never status-red-coded.
+ */
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --surface-1: #fcfcfb;
+  --page: #f9f9f7;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  /* palette.md's reference #898781 is 3.4:1 here — fine for a chart-axis-scale label, but this
+     value is also used for real UI text (stat labels, privacy notes), which needs the stricter
+     4.5:1 body-text threshold. Darkened to #6b6b6b (~5.1:1) so every current use passes WCAG AA;
+     confirmed with axe-core, not just computed — see the Phase 4 accessibility pass. */
+  --text-muted: #6b6b6b;
+  --border: rgba(11, 11, 11, 0.1);
+
+  --gauge-track: #b7d3f6; /* sequential step 150 */
+  --gauge-fill: #2a78d6; /* sequential step 450, the default anchor */
+
+  --chart-gridline: #e1e0d9;
+  --chart-crosshair: #898781;
+  --danger: #d03b3b; /* status "critical" step — reserved for destructive actions only */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --border: rgba(255, 255, 255, 0.1);
+
+    --gauge-track: #184f95; /* sequential step 600 (dark-mode floor per palette.md) */
+    --gauge-fill: #3987e5; /* categorical slot-1 dark hex, same hue family */
+
+    --chart-gridline: #2c2c2a;
+    --chart-crosshair: #898781;
+    --danger: #e66767; /* status "critical" dark step */
+  }
+}
+
+body {
+  margin: 0;
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+  background: var(--page);
+  color: var(--text-primary);
+}
+
+/* An author-stylesheet rule that sets `display` on an element at equal specificity beats the UA
+ * stylesheet's default `[hidden] { display: none }`, so `.hidden = true` alone would silently
+ * stop hiding the moment that element also gets its own `display` declaration. One global,
+ * `!important` rule makes `[hidden]` authoritative everywhere instead of requiring every such
+ * element to carry its own `<selector>[hidden]` override. */
+[hidden] {
+  display: none !important;
+}
+
+/* Standard "sr-only" technique: present to assistive tech, removed from visual layout without
+ * `display:none`/`visibility:hidden`, which would also remove it from the accessibility tree. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.app {
+  max-width: 640px;
+  width: 100%;
+}
+
+h1 {
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
+}
+
+h2 {
+  font-size: 1.1rem;
+}
+
+.disclaimer {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0;
+}
+
+.screen {
+  display: block;
+}
+
+.consent-points {
+  padding-left: 1.25rem;
+  line-height: 1.5;
+}
+
+.consent-points li {
+  margin-bottom: 0.5rem;
+}
+
+.status-line {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  min-height: 1.2em;
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--gauge-track);
+  overflow: hidden;
+  margin: 0.5rem 0 1rem;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--gauge-fill);
+  transition: width 0.5s linear;
+}
+
+.video-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #111;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* mirror, matches how people expect to see themselves */
+}
+
+canvas#overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+
+.gauge-wrap {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+#stressGauge {
+  width: 100%;
+  max-width: 320px;
+}
+
+.gauge-track {
+  fill: none;
+  stroke: var(--gauge-track);
+  stroke-width: 16;
+  stroke-linecap: round;
+}
+
+.gauge-fill {
+  fill: none;
+  stroke: var(--gauge-fill);
+  stroke-width: 16;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100; /* starts empty; gauge.ts animates this toward (100 - value) */
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.gauge-value {
+  font-size: 2rem;
+  font-weight: 600;
+  fill: var(--text-primary);
+}
+
+.gauge-band {
+  font-size: 0.85rem;
+  fill: var(--text-secondary);
+}
+
+.readout {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.stat {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: var(--surface-1);
+}
+
+.stat .label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.stat .value {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.stat .unit {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: 0.25rem;
+}
+
+.controls {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.privacy-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1.5rem;
+}
+
+/* --- Nav (History/Settings, Phase 2) --- */
+
+.app-nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.nav-btn[aria-current="page"] {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* --- Trend chart (hand-rolled SVG, dataviz skill: thin line + recessive grid + hover) --- */
+
+.chart-container {
+  position: relative;
+  margin: 0.5rem 0 1.5rem;
+}
+
+.trend-chart {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-gridline {
+  stroke: var(--chart-gridline);
+  stroke-width: 1;
+}
+
+.chart-axis-label {
+  font-size: 8px;
+  fill: var(--text-muted);
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--gauge-fill);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-point {
+  fill: var(--surface-1);
+  stroke: var(--gauge-fill);
+  stroke-width: 2;
+}
+
+.chart-crosshair {
+  stroke: var(--chart-crosshair);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+
+.chart-hit-area {
+  fill: transparent;
+  cursor: crosshair;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -100%);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.chart-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* --- Time-of-day heatmap --- */
+
+.heatmap-container {
+  overflow-x: auto;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: 28px repeat(24, minmax(10px, 1fr));
+  gap: 2px;
+  min-width: 420px;
+}
+
+.heatmap-corner {
+  height: 14px;
+}
+
+.heatmap-hour-label,
+.heatmap-day-label {
+  font-size: 8px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heatmap-day-label {
+  justify-content: flex-start;
+}
+
+.heatmap-cell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+}
+
+.heatmap-cell--empty {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--border),
+    var(--border) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+/* --- Session list --- */
+
+.session-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.5rem 0 1.5rem;
+}
+
+.session-row {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+  font-size: 0.85rem;
+}
+
+.session-date {
+  color: var(--text-secondary);
+}
+
+.session-mean,
+.session-peak {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.session-rating {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.session-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* --- Settings form --- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.9rem;
+}
+
+.field input,
+.field select {
+  font: inherit;
+  padding: 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* --- Recalibration hint + self-report prompt (Phase 3) --- */
+
+.hint {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.self-report-prompt {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+}
+
+.self-report-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.self-report-rating input[type="range"] {
+  flex: 1;
+}
+
+.self-report-rating output {
+  font-weight: 600;
+  min-width: 1.5em;
+  text-align: center;
+}
+
+.confounders {
+  border: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+.confounders legend {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0;
+  margin-bottom: 0.35rem;
+}
+
+.confounders label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: normal;
+}
+
+/* --- Breathing exercise (Phase 4, PLAN.md §8) --- */
+
+.breathing-offer {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+}
+
+.breathing-exercise {
+  margin-top: 1rem;
+  padding: 1.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.breathing-circle-wrap {
+  position: relative;
+  width: 200px;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.breathing-circle-svg {
+  width: 100%;
+  height: auto;
+}
+
+.breathing-circle-shape {
+  fill: var(--gauge-track);
+  stroke: var(--gauge-fill);
+  stroke-width: 2;
+  /* A gentle continuous ease rather than per-frame jumps — the RAF loop still updates every
+     frame, but this softens the visual step between updates on lower frame rates. */
+  transition: r 0.15s linear;
+}
+
+.breathing-phase-text {
+  position: absolute;
+  font-size: 1rem;
+  font-weight: 500;
+  text-align: center;
+}

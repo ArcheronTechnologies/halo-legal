@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Halo Pulse</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>Halo Pulse</h1>
+        <p class="disclaimer">
+          Personal wellness prototype. Not a medical device, and not an emotion reading — see
+          <a href="https://github.com/ArcheronTechnologies/halo-legal/blob/main/PLAN.md" target="_blank" rel="noopener">PLAN.md</a>.
+        </p>
+      </header>
+
+      <!-- Screen 1: consent gate (PLAN.md §7 — explicit, revocable consent before first capture) -->
+      <section id="consentScreen" class="screen" hidden>
+        <h2>Before you start</h2>
+        <ul class="consent-points">
+          <li>Your camera is processed only in memory, in this browser tab. Video is never uploaded, recorded, or sent anywhere.</li>
+          <li>Only derived numbers (heart rate, tension estimates, a stress index) are ever saved — never a frame, image, or face template.</li>
+          <li>This is a personal self-tracking tool: not a diagnosis, not an emotion reading, not for use on anyone but yourself.</li>
+          <li>You can revoke consent, export, or delete everything at any time.</li>
+        </ul>
+        <button id="consentBtn" type="button">I understand, continue</button>
+      </section>
+
+      <!-- Screen 2: calibration (PLAN.md §6 — a short guided rest recording) -->
+      <section id="calibrationScreen" class="screen" hidden>
+        <h2>Calibration</h2>
+        <p>
+          Sit still, relax, and look at the camera for about a minute. This builds your personal
+          baseline — everything else is measured as a change from <em>this</em>, not an absolute
+          number.
+        </p>
+        <div class="video-wrap" aria-hidden="true">
+          <video id="calibrationVideo" autoplay playsinline muted></video>
+        </div>
+        <p id="calibrationStatus" class="status-line" aria-live="polite">Preparing...</p>
+        <div class="progress-track">
+          <div id="calibrationProgress" class="progress-fill"></div>
+        </div>
+        <div class="controls">
+          <button id="calibrationCancelBtn" type="button">Cancel</button>
+        </div>
+      </section>
+
+      <!-- Persistent nav between the three post-onboarding screens -->
+      <nav id="appNav" class="app-nav" hidden>
+        <button id="navLiveBtn" type="button" class="nav-btn" aria-current="page">Live</button>
+        <button id="navHistoryBtn" type="button" class="nav-btn">History</button>
+        <button id="navSettingsBtn" type="button" class="nav-btn">Settings</button>
+      </nav>
+
+      <!-- Screen 3: main / live session -->
+      <section id="mainScreen" class="screen" hidden>
+        <div class="capture-area">
+          <div class="video-wrap" aria-hidden="true">
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="overlay"></canvas>
+          </div>
+
+          <div class="gauge-wrap">
+            <svg id="stressGauge" viewBox="0 0 200 120" role="img" aria-label="Stress index gauge">
+              <path class="gauge-track" d="M 20 100 A 80 80 0 0 1 180 100" />
+              <path id="gaugeFill" class="gauge-fill" pathLength="100" d="M 20 100 A 80 80 0 0 1 180 100" />
+              <text id="gaugeValue" x="100" y="90" text-anchor="middle" class="gauge-value">--</text>
+              <text id="gaugeBand" x="100" y="110" text-anchor="middle" class="gauge-band">Not calibrated</text>
+            </svg>
+            <!-- role="img" on the SVG above flattens its nested <text> for assistive tech, so the
+                 live value/band is announced through this sibling live region instead. -->
+            <div id="gaugeLiveText" class="visually-hidden" aria-live="polite">Not calibrated</div>
+          </div>
+
+          <div class="readout" aria-live="polite">
+            <div class="stat">
+              <span class="label">Status</span>
+              <span id="status" class="value">Idle</span>
+            </div>
+            <div class="stat">
+              <span class="label">Heart rate</span>
+              <span id="hr" class="value">--</span>
+              <span class="unit">bpm</span>
+            </div>
+            <div class="stat">
+              <span class="label">Signal quality</span>
+              <span id="sqi" class="value">--</span>
+            </div>
+            <div class="stat">
+              <span class="label">Layer</span>
+              <span id="method" class="value">--</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="startBtn" type="button">Start session</button>
+          <button id="stopBtn" type="button" disabled>Stop</button>
+          <button id="recalibrateBtn" type="button">Re-calibrate</button>
+          <label>
+            <input type="checkbox" id="overlayToggle" checked />
+            Show ROI overlay
+          </label>
+        </div>
+        <p id="recalibrationHint" class="status-line hint" hidden>
+          Your baseline is over a month old — consider re-calibrating.
+        </p>
+
+        <!-- Optional breathing-exercise insight (PLAN.md §8/§10 Phase 4), offered once per
+             session after a sustained elevated/high reading — never forced, easy to dismiss. -->
+        <div id="breathingOffer" class="breathing-offer" hidden>
+          <p>Your stress index has stayed elevated for a bit. Want to try a short breathing exercise?</p>
+          <div class="controls">
+            <button id="breathingStartBtn" type="button">Start breathing exercise</button>
+            <button id="breathingDismissBtn" type="button">No thanks</button>
+          </div>
+        </div>
+
+        <div id="breathingExercise" class="breathing-exercise" hidden>
+          <div class="breathing-circle-wrap">
+            <svg viewBox="0 0 200 200" class="breathing-circle-svg" role="img" aria-label="Breathing pace guide">
+              <circle cx="100" cy="100" r="30" id="breathingCircle" class="breathing-circle-shape" />
+            </svg>
+            <p id="breathingPhaseText" class="breathing-phase-text" aria-live="polite">Breathe in (4)</p>
+          </div>
+          <p id="breathingCycleCount" class="status-line" aria-live="polite">0 cycles completed</p>
+          <div class="controls">
+            <button id="breathingStopBtn" type="button">Done</button>
+          </div>
+        </div>
+
+        <!-- Opt-in post-session self-report (PLAN.md §10 Phase 3 "labelled-session capture") -->
+        <div id="selfReportPrompt" class="self-report-prompt" hidden>
+          <p>How stressed did you feel during that session?</p>
+          <div class="self-report-rating">
+            <input type="range" id="selfReportRating" min="0" max="10" step="1" value="5" />
+            <output id="selfReportRatingValue" for="selfReportRating">5</output>
+          </div>
+          <fieldset class="confounders">
+            <legend>Anything that might have affected this? (optional)</legend>
+            <label><input type="checkbox" class="confounder-checkbox" value="caffeine" /> Caffeine</label>
+            <label><input type="checkbox" class="confounder-checkbox" value="exercise" /> Exercise</label>
+            <label><input type="checkbox" class="confounder-checkbox" value="illness" /> Illness</label>
+            <label><input type="checkbox" class="confounder-checkbox" value="poor_sleep" /> Poor sleep</label>
+            <label><input type="checkbox" class="confounder-checkbox" value="alcohol" /> Alcohol</label>
+            <label><input type="checkbox" class="confounder-checkbox" value="talking_a_lot" /> Talking a lot</label>
+          </fieldset>
+          <div class="controls">
+            <button id="selfReportSaveBtn" type="button">Save rating</button>
+            <button id="selfReportSkipBtn" type="button">Skip</button>
+          </div>
+        </div>
+
+        <p class="privacy-note">
+          Video is processed only in memory in this browser tab and is never uploaded or recorded.
+          Only the session summary and derived numbers below are saved locally, on this device.
+        </p>
+      </section>
+
+      <!-- Screen 4: history / trends (PLAN.md §10 Phase 2 "the development requirement") -->
+      <section id="historyScreen" class="screen" hidden>
+        <h2>History</h2>
+        <p id="trendSummary" class="status-line" aria-live="polite"></p>
+
+        <h3>Stress index over time</h3>
+        <div id="trendChartContainer" class="chart-container"></div>
+
+        <h3>Time of day</h3>
+        <div id="heatmapContainer" class="chart-container heatmap-container"></div>
+
+        <h3>Sessions</h3>
+        <p id="selfReportInsight" class="status-line"></p>
+        <ul id="sessionList" class="session-list"></ul>
+      </section>
+
+      <!-- Screen 5: settings (PLAN.md §7 data control + §8 settings) -->
+      <section id="settingsScreen" class="screen" hidden>
+        <h2>Settings</h2>
+
+        <form id="settingsForm">
+          <label class="field">
+            <span>Retention (days)</span>
+            <input id="retentionDaysInput" type="number" min="1" step="1" />
+          </label>
+          <label class="field">
+            <span>Sensitivity</span>
+            <input id="sensitivityInput" type="range" min="0" max="1" step="0.05" />
+          </label>
+          <label class="field">
+            <span>Theme</span>
+            <select id="themeSelect">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <div class="controls">
+            <button id="settingsSaveBtn" type="submit">Save</button>
+            <span id="settingsSaveStatus" class="status-line" aria-live="polite"></span>
+          </div>
+        </form>
+
+        <h3>Your data</h3>
+        <p class="privacy-note">
+          Export everything as a file you keep, or delete it all. Nothing here is ever sent
+          anywhere else.
+        </p>
+        <div class="controls">
+          <button id="exportJsonBtn" type="button">Export JSON</button>
+          <button id="exportCsvBtn" type="button">Export CSV</button>
+        </div>
+        <div class="controls">
+          <button id="deleteAllBtn" type="button" class="danger">Delete all data</button>
+          <button id="revokeConsentBtn" type="button" class="danger">Revoke consent</button>
+        </div>
+
+        <h3>Experimental</h3>
+        <p class="privacy-note">
+          Measures on-device deep-learning inference speed using an untrained placeholder model —
+          a feasibility spike (PLAN.md §10 Phase 0), never a real stress reading.
+        </p>
+        <div class="controls">
+          <button id="dlSpikeBtn" type="button">Measure DL inference latency</button>
+          <span id="dlSpikeResult" class="status-line" aria-live="polite"></span>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
