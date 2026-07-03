@@ -22,7 +22,15 @@ export interface ResetMessage {
   type: "reset";
 }
 
-export type MainToWorkerMessage = InitMessage | FrameMessage | ResetMessage;
+/** Toggles whether `frameResult` includes `landmarks` — the main thread only needs them to draw
+ * the ROI overlay, so there's no reason to map + structured-clone ~468 points every face frame
+ * while the overlay checkbox is off. */
+export interface SetOverlayMessage {
+  type: "setOverlay";
+  enabled: boolean;
+}
+
+export type MainToWorkerMessage = InitMessage | FrameMessage | ResetMessage | SetOverlayMessage;
 
 export interface ReadyMessage {
   type: "ready";

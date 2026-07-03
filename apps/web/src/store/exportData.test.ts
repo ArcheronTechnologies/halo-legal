@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getActiveBaseline } from "./baselines.js";
 import { HaloPulseDb } from "./db.js";
 import { buildExportBundle, deleteAllData } from "./exportData.js";
-import { recomputeRollups } from "./rollups.js";
 import { saveSession } from "./sessions.js";
 import { grantConsent } from "./settings.js";
 
@@ -119,19 +118,15 @@ describe("buildExportBundle", () => {
 });
 
 describe("deleteAllData", () => {
-  it("removes baselines, sessions, samples, and rollups for the profile", async () => {
+  it("removes baselines, sessions, and samples for the profile", async () => {
     await db.baselines.put(makeBaseline({ id: "b1" }));
     await saveSession(db, makeSession({ id: "s1" }), [makeSample("s1", 0)]);
-    await recomputeRollups(db, "local");
-
-    expect(await db.rollups.where("profileId").equals("local").count()).toBeGreaterThan(0);
 
     await deleteAllData(db, "local");
 
     expect(await getActiveBaseline(db, "local")).toBeUndefined();
     expect(await db.sessions.where("profileId").equals("local").count()).toBe(0);
     expect(await db.samples.count()).toBe(0);
-    expect(await db.rollups.where("profileId").equals("local").count()).toBe(0);
   });
 
   it("does not touch settings/consent", async () => {

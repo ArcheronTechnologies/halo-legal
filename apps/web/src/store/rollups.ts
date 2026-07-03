@@ -1,6 +1,4 @@
 import type { Rollup, Sample } from "@halo-pulse/types";
-import type { HaloPulseDb } from "./db.js";
-import { getAllSamplesForProfile } from "./sessions.js";
 
 /**
  * Local-calendar-day key (YYYY-MM-DD) for a sample timestamp. Deliberately the *browser's* local
@@ -43,29 +41,4 @@ export function computeRollups(
       sampleCount: count,
     }))
     .sort((a, b) => a.day.localeCompare(b.day));
-}
-
-/**
- * Recomputes every rollup for a profile from scratch and replaces what's stored. Simple and
- * always-correct rather than incremental — personal local data volumes (a wellness app, one
- * device) stay small enough that a full recompute on every session save is cheap, and it avoids
- * an entire class of drift bugs that incremental delta-merging across edits/deletes would risk.
- */
-export async function recomputeRollups(db: HaloPulseDb, profileId: string): Promise<Rollup[]> {
-  const samples = await getAllSamplesForProfile(db, profileId);
-  const rollups = computeRollups(profileId, samples);
-
-  await db.transaction("rw", db.rollups, async () => {
-    const existingKeys = await db.rollups.where("profileId").equals(profileId).primaryKeys();
-    await db.rollups.bulkDelete(existingKeys);
-    if (rollups.length > 0) {
-      await db.rollups.bulkAdd(rollups);
-    }
-  });
-
-  return rollups;
-}
-
-export async function listRollups(db: HaloPulseDb, profileId: string): Promise<Rollup[]> {
-  return db.rollups.where("profileId").equals(profileId).sortBy("day");
 }

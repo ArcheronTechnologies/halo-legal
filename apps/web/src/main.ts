@@ -30,7 +30,7 @@ import {
 import { getActiveBaseline } from "./store/baselines.js";
 import { db, LOCAL_PROFILE_ID } from "./store/db.js";
 import { buildExportBundle, deleteAllData } from "./store/exportData.js";
-import { recomputeRollups } from "./store/rollups.js";
+import { computeRollups } from "./store/rollups.js";
 import {
   addSelfReport,
   getAllSamplesForProfile,
@@ -310,6 +310,7 @@ async function startLive(): Promise<void> {
   }
 
   liveSession = session;
+  liveSession.setOverlayEnabled(overlayToggle.checked);
   overlayEl.width = videoEl.videoWidth || 640;
   overlayEl.height = videoEl.videoHeight || 480;
   sessionStartedAtMs = Date.now();
@@ -491,15 +492,24 @@ recalibrateBtn.addEventListener("click", () => {
   startCalibration();
 });
 
+overlayToggle.addEventListener("change", () => {
+  liveSession?.setOverlayEnabled(overlayToggle.checked);
+  if (!overlayToggle.checked) {
+    clearOverlay(overlayCtx, overlayEl.width, overlayEl.height);
+  }
+});
+
 // --- History screen (PLAN.md §10 Phase 2 "the development requirement") ---
 async function refreshHistoryScreen(): Promise<void> {
-  // Recomputed here (not just after each live session) so History is always correct regardless
-  // of how session data arrived — including a future import, or data seeded some other way.
-  const [sessions, rollups, samples] = await Promise.all([
+  // Recomputed here (not just after each live session) so History is always correct regardless of
+  // how session data arrived — including a future import, or data seeded some other way. Rollups
+  // and the heatmap are both cheap, pure derivations of the same samples array, so a single fetch
+  // covers both instead of the samples table being scanned twice.
+  const [sessions, samples] = await Promise.all([
     listSessions(db, LOCAL_PROFILE_ID),
-    recomputeRollups(db, LOCAL_PROFILE_ID),
     getAllSamplesForProfile(db, LOCAL_PROFILE_ID),
   ]);
+  const rollups = computeRollups(LOCAL_PROFILE_ID, samples);
   renderHistoryScreen(historyElements, {
     sessions,
     rollups,

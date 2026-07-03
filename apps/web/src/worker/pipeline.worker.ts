@@ -40,6 +40,9 @@ let pixelCtx: OffscreenCanvasRenderingContext2D | null = null;
 let roiBuffer: RoiSample[] = [];
 let behaviouralBuffer: BehaviouralSample[] = [];
 let framesSinceFace = 0;
+// The main thread only consumes landmarks to draw the ROI overlay — skip the per-frame map +
+// structured-clone of ~468 points while it's off (see SetOverlayMessage in protocol.ts).
+let emitLandmarks = true;
 
 function post(message: WorkerToMainMessage): void {
   ctx.postMessage(message);
@@ -90,17 +93,6 @@ function handleFrame(msg: FrameMessage): void {
     }
     framesSinceFace = 0;
 
-    if (
-      !pixelCanvas ||
-      pixelCanvas.width !== imageBitmap.width ||
-      pixelCanvas.height !== imageBitmap.height
-    ) {
-      pixelCanvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
-      pixelCtx = pixelCanvas.getContext("2d", { willReadFrequently: true });
-    }
-    pixelCtx?.drawImage(imageBitmap, 0, 0);
-    const imageData = pixelCtx?.getImageData(0, 0, imageBitmap.width, imageBitmap.height);
-
     const blendshapeCategories = result.faceBlendshapes[0]?.categories ?? [];
     const tension = extractTensionFeatures(blendshapeCategories);
     const tSec = timestampMs / 1000;
@@ -117,21 +109,36 @@ function handleFrame(msg: FrameMessage): void {
       WINDOW_SEC,
     );
 
-    if (!tension.blinking && imageData) {
-      const forehead = computeRoiMeanRgb(imageData, landmarks, ROI_LANDMARK_INDICES.forehead);
-      if (forehead.pixelCount > 0) {
-        pushWithEviction(
-          roiBuffer,
-          { t: tSec, r: forehead.r, g: forehead.g, b: forehead.b },
-          WINDOW_SEC,
-        );
+    // Building the full-frame pixel buffer is the most expensive part of this handler — only do
+    // it when the ROI will actually be read (never on a blink frame).
+    if (!tension.blinking) {
+      if (
+        !pixelCanvas ||
+        pixelCanvas.width !== imageBitmap.width ||
+        pixelCanvas.height !== imageBitmap.height
+      ) {
+        pixelCanvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
+        pixelCtx = pixelCanvas.getContext("2d", { willReadFrequently: true });
+      }
+      pixelCtx?.drawImage(imageBitmap, 0, 0);
+      const imageData = pixelCtx?.getImageData(0, 0, imageBitmap.width, imageBitmap.height);
+
+      if (imageData) {
+        const forehead = computeRoiMeanRgb(imageData, landmarks, ROI_LANDMARK_INDICES.forehead);
+        if (forehead.pixelCount > 0) {
+          pushWithEviction(
+            roiBuffer,
+            { t: tSec, r: forehead.r, g: forehead.g, b: forehead.b },
+            WINDOW_SEC,
+          );
+        }
       }
     }
 
     post({
       type: "frameResult",
       faceDetected: true,
-      landmarks: landmarks.map((l) => ({ x: l.x, y: l.y })),
+      ...(emitLandmarks ? { landmarks: landmarks.map((l) => ({ x: l.x, y: l.y })) } : {}),
     });
   } finally {
     // ImageBitmaps are transferred, not cloned — the worker owns and must release this one.
@@ -170,6 +177,9 @@ ctx.onmessage = (ev: MessageEvent<MainToWorkerMessage>) => {
       break;
     case "reset":
       handleReset();
+      break;
+    case "setOverlay":
+      emitLandmarks = msg.enabled;
       break;
   }
 };

@@ -1,4 +1,4 @@
-import type { Baseline, Rollup, Sample, Session, Settings } from "@halo-pulse/types";
+import type { Baseline, Sample, Session, Settings } from "@halo-pulse/types";
 import Dexie, { type Table } from "dexie";
 
 /** Single-profile local app for now — no multi-profile UI exists yet. */
@@ -14,7 +14,6 @@ export class HaloPulseDb extends Dexie {
   sessions!: Table<Session, string>;
   samples!: Table<Sample, string>;
   settings!: Table<Settings, string>;
-  rollups!: Table<Rollup, string>;
 
   constructor(name = "halo-pulse") {
     super(name);
@@ -26,6 +25,13 @@ export class HaloPulseDb extends Dexie {
     });
     this.version(2).stores({
       rollups: "id, profileId, day",
+    });
+    // Rollups turned out to be written on every History open but never read back (History always
+    // recomputes from `samples` in-memory instead — see refreshHistoryScreen in main.ts) — dropped
+    // rather than kept as unused dead weight. The v1/v2 version() calls stay so existing installs
+    // upgrade through them cleanly instead of skipping straight to v3.
+    this.version(3).stores({
+      rollups: null,
     });
   }
 }

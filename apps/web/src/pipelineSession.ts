@@ -14,6 +14,8 @@ export interface PipelineSessionCallbacks {
 
 export interface PipelineSession {
   stop: () => void;
+  /** Forwards to the worker's SetOverlayMessage — see pipeline.worker.ts's `emitLandmarks`. */
+  setOverlayEnabled: (enabled: boolean) => void;
 }
 
 /**
@@ -87,6 +89,9 @@ export async function startPipelineSession(
       stopFrameLoop();
       camera.stop();
       worker.terminate();
+    },
+    setOverlayEnabled: (enabled: boolean) => {
+      post({ type: "setOverlay", enabled });
     },
   };
 }
