@@ -349,7 +349,13 @@ Full study design, datasets, instruments, and metrics: [`VALIDATION.md`](VALIDAT
 Each phase has a demoable outcome and acceptance criteria. Deep learning is present starting **Phase
 0**, not deferred to a later phase, per the product decision in §2.1.1.
 
-### Phase 0 — Spike (feasibility, including the DL path)
+**Implementation status (updated as of the Phase 0–4 build pass):** every phase below has shipped its
+**software-buildable** scope — real, tested, working code on `apps/web`, not a stub. What has
+*deliberately* not been attempted is called out per phase and gathered in §10.1: it is real-world
+work (a multi-subject validation study with reference hardware; training an actual DL rPPG model on
+real datasets) that a coding session cannot produce, not a corner cut for expedience.
+
+### Phase 0 — Spike (feasibility, including the DL path) — ✅ done
 - Webcam capture with `requestVideoFrameCallback` timestamps; face landmarks; forehead ROI; naïve
   band-pass HR estimate — live HR number.
 - **Also in this phase:** stand up the on-device DL inference path — load a candidate rPPG model
@@ -358,8 +364,12 @@ Each phase has a demoable outcome and acceptance criteria. Deep learning is pres
   primary DL candidate based on this spike, weighing the licensing consideration in §2.1.2.
 - **Done when:** live HR tracks a reference within a plausible range in good light, *and* the DL
   inference path runs on-device within a defined latency budget with a working fallback.
+- **Status:** live HR spike done. The DL inference path was initially left unaddressed by the Phase
+  1–4 build pass and has since been closed as an infrastructure spike — see ARCHITECTURE.md §5.2.1
+  for the measured WebGPU/WASM-fallback latency numbers and exactly what is and isn't proven by it
+  (real inference infrastructure: yes; a trained model: no, still open, see §10.1).
 
-### Phase 1 — MVP: reliable single-session stress read-out, hybrid rPPG
+### Phase 1 — MVP: reliable single-session stress read-out, hybrid rPPG — ✅ done (classical layer)
 - Classical layer: POS + OMIT (+ CHROM fallback), multi-ROI, timestamp resampling, SQI.
 - DL layer: the Phase 0 model integrated behind the SQI/condition-gated fusion described in §2.1.1,
   shipping classical-only wherever the DL layer hasn't cleared validation for that condition.
@@ -370,30 +380,73 @@ Each phase has a demoable outcome and acceptance criteria. Deep learning is pres
 - **Done when:** calibration + a live, smoothed, quality-gated index work reliably; the app is honest
   in the UI about which signal layer(s) are active; nothing is uploaded; raw frames are provably never
   persisted.
+- **Status:** the classical layer, calibration, composite Stress Index, live gauge, and local
+  persistence are all shipped and Playwright-verified. The DL layer is *not* fused into scoring (§10.1)
+  — the app is always in the "classical-only" state this phase's fusion design already treats as the
+  correct, always-available fallback, so this isn't a degraded mode, just the only mode so far.
 
-### Phase 2 — Trends over time
+### Phase 2 — Trends over time — ✅ done
 - Session history; daily/weekly aggregates; time-of-day heatmap; trend/change-point detection.
 - Data **export** and **delete-all**; retention settings.
 - **Done when:** a user can see week-over-week and time-of-day patterns and fully control their data.
+- **Status:** shipped — daily rollups, a trend line chart with change-point detection, a time-of-day
+  heatmap, JSON/CSV export, and delete-all, all Playwright-verified.
 
-### Phase 3 — Personalization & accuracy
+### Phase 3 — Personalization & accuracy — ◐ partially done (software half only)
 - Labelled-session capture (opt-in self-report); per-user adaptive baseline/thresholds (the biggest
   lever per §6); expanded XGBoost/temporal-DL options; A/B vs. the Phase 1 composite+DL baseline.
 - Confounder handling and better motion robustness.
 - **Done when:** any additional learned layer beats the Phase 1 baseline on the `VALIDATION.md` §6
   metrics for opted-in users, without regressing Monk-stratified fairness.
+- **Status:** shipped — opt-in post-session self-report (0–10 rating + confounder tags) and a
+  recalibration-cadence hint. Also shipped, deliberately scoped as a *transparency* figure rather
+  than validated personalization: a Pearson-correlation readout between the computed index and the
+  user's own ratings, once ≥5 sessions are rated. **Not done, and out of reach for a coding session:**
+  actually adjusting scores from that correlation, training an XGBoost/temporal-DL model, or the A/B
+  comparison this phase's own "done when" calls for — every one of those needs real accumulated
+  multi-user session data this environment has no way to produce (§10.1).
 
-### Phase 4 — Validation, fairness & polish
+### Phase 4 — Validation, fairness & polish — ◐ partially done (software half only)
 - Run the full `VALIDATION.md` study, **including cross-skin-tone fairness and DL LOSO/cross-dataset
   evaluation**; publish an honest results summary.
 - PWA/offline polish (including precached DL weights); accessibility pass; optional breathing-exercise
   interventions.
 - **Done when:** the validation report meets targets (or limits are documented) and the app is
   installable, accessible, calm, and works offline including the DL inference path.
+- **Status:** shipped — installable PWA with the full classical pipeline (MediaPipe + WASM + the
+  Worker bundle, ~37MB) precached and verified working with the network cut; an axe-core accessibility
+  pass across every screen in both color schemes (zero violations after two real, now-fixed bugs —
+  see ARCHITECTURE.md's a11y note); an optional, dismissible, at-most-once-per-session breathing
+  exercise. The DL inference path now works offline-capably in principle but is deliberately
+  *excluded* from the precache (ARCHITECTURE.md §5.2.1 — a ~40MB experimental feature isn't worth
+  doubling the install size for). **Not done, and out of reach for a coding session:** the actual
+  `VALIDATION.md` study — it requires recruiting ≥30–40 real human subjects, a reference pulse device
+  (Polar H10 or similar), an induced-stress protocol run in person, and Monk-stratified analysis of
+  the results (§10.1).
 
 ### Later / optional
 - Desktop packaging (Tauri/Electron); reminders/nudges; opt-in E2E-encrypted backup; possible
   integration with the Halo app family.
+
+### 10.1 What remains genuinely blocked on real-world resources
+
+Stated plainly, once, rather than re-qualified in every section above: two categories of work in
+this roadmap cannot be completed by writing more code, and weren't skipped for lack of trying —
+
+1. **A trained, validated DL rPPG model.** Training TS-CAN/EfficientPhys/Contrast-Phys+ (or any
+   competitive model) needs real face-video datasets with synchronized ground-truth pulse
+   (UBFC-rPPG/PURE/VIPL-HR), GPU training time, and then the LOSO + cross-dataset + Monk-stratified
+   validation gate (§5.3, `VALIDATION.md` §6) before it's trusted to influence a score. What *is*
+   done — self-hosted on-device inference infrastructure, measured and working (ARCHITECTURE.md
+   §5.2.1) — is a prerequisite for this, not a substitute.
+2. **The formal `VALIDATION.md` study**, and by extension any claim that the Stress Index has been
+   shown to track real stress: a within-subject induced-stress protocol (Stroop/MIST) across
+   ≥30–40 people, a reference instrument (Polar H10 ECG + STAI-State), and Monk-skin-tone-stratified
+   analysis of the results (`VALIDATION.md` §4–§6). None of it can run inside this environment.
+
+Both are the natural next phase of *human* work — recruiting people, running sessions, training on
+GPUs with real datasets — not a to-do that got missed. Everything upstream of them (the pipeline the
+study would validate, the training infrastructure a real model would run on) is built and tested.
 
 ---
 

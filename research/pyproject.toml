@@ -11,6 +11,8 @@ dependencies = [
   "heartpy>=1.2.7",
   "scikit-learn>=1.4",
   "matplotlib>=3.8",
+  "onnx>=1.16",
+  "onnxruntime>=1.18",
 ]
 
 [dependency-groups]

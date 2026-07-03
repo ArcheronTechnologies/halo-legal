@@ -545,6 +545,30 @@ settingsElements.revokeConsentBtn.addEventListener("click", () => {
     .catch((err) => console.error("revoke consent failed:", err));
 });
 
+// --- DL inference latency spike (PLAN.md §10 Phase 0, see dlInferenceSpike.ts) ---
+const dlSpikeBtn = document.getElementById("dlSpikeBtn") as HTMLButtonElement;
+const dlSpikeResult = document.getElementById("dlSpikeResult") as HTMLElement;
+
+dlSpikeBtn.addEventListener("click", () => {
+  dlSpikeBtn.disabled = true;
+  dlSpikeResult.textContent = "Measuring...";
+  // Dynamic import: onnxruntime-web (~360KB+ its WASM runtime) is only worth loading for the
+  // handful of people who click this experimental button, not on every page load.
+  import("./dlInferenceSpike.js")
+    .then(({ runDlInferenceSpike }) => runDlInferenceSpike())
+    .then((result) => {
+      dlSpikeResult.textContent =
+        `${result.backend}: ${result.meanLatencyMs.toFixed(1)}ms avg ` +
+        `(${result.minLatencyMs.toFixed(1)}-${result.maxLatencyMs.toFixed(1)}ms range, ${result.runs} runs)`;
+    })
+    .catch((err) => {
+      dlSpikeResult.textContent = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    })
+    .finally(() => {
+      dlSpikeBtn.disabled = false;
+    });
+});
+
 boot().catch((err) => {
   console.error("boot failed:", err);
   setStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);

@@ -234,6 +234,47 @@ see [ADR-0005](docs/adr/0005-local-only-and-clean-licensing.md). Training/export
 equivalent) in `research/` → ONNX export → validated for parity against the harness's own inference →
 copied into `apps/web` as a versioned, self-hosted asset.
 
+#### 5.2.1 What's actually built: a correctly-gated contract, plus a now-closed infra question
+
+Two separate pieces of DL work exist in this codebase, at very different stages, and the distinction
+matters:
+
+- **The production integration contract (`packages/ml/`), built in Phase 0 and still exactly
+  correct today.** `dlRppgModel.ts`'s `loadDlRppgModel` and `fusion.ts`'s `isDlValidatedForCondition`
+  / `fuseRppgEstimate` are the real interface the scoring pipeline would use — and they are
+  deliberately, honestly **gated closed**: `isDlValidatedForCondition` always returns
+  `dlTrusted: false` (with the reason stated in its own docstring: no `VALIDATION.md` §5 study has
+  been run for any condition yet), so `fuseRppgEstimate` always falls back to classical-only. This
+  isn't unfinished — it's the correct behavior until real validation evidence exists (§5.3, ADR-0002),
+  and nothing below changes it.
+- **A new, separate infrastructure spike (`apps/web/src/dlInferenceSpike.ts` +
+  `research/rppg/dl_spike_model.py`), closing a different, previously-open question:** not "should
+  the DL layer's output be trusted" (already correctly answered "not yet" above) but "does
+  `onnxruntime-web`/WebGPU on-device inference actually work at all, on real hardware, within a
+  latency budget" — the original Phase 0 acceptance criterion ("the DL inference path runs on-device
+  within a defined latency budget with a working fallback") that the Phase 0–4 build had otherwise
+  left unaddressed. It runs an architecturally-representative but **untrained** placeholder ONNX model
+  (a small 2-conv-layer CNN over a 72×72 face-patch, matching the rough shape/complexity of
+  TS-CAN/EfficientPhys) through `onnxruntime-web`, self-hosted (no CDN), with automatic WebGPU→WASM
+  fallback and `numThreads=1` so the WASM path needs no COOP/COEP headers, matching §5.1. It's
+  reachable from Settings → Experimental in the shipped app for anyone who wants to reproduce this.
+  **Measured (this sandboxed, likely software-rendered container — a real device should do better,
+  not worse):** WebGPU ~140–150ms/inference; WASM fallback ~3.5ms/inference. Both paths load and
+  execute without error. The DL/onnxruntime-web assets are deliberately **excluded** from the PWA
+  precache (`vite.config.ts`) — at ~40MB for the WebGPU-capable WASM runtime alone, doubling the
+  install size for an experimental, non-critical-path feature isn't the right tradeoff against the
+  core offline promise (§7), so this one button is online-only.
+- **Still not started, by either piece above: an actual trained rPPG model.** Nothing in this
+  codebase scores real stress from the DL path — the spike model's weights are fixed placeholder
+  values, never trained, and `loadDlRppgModel` has no model URL configured. Training
+  TS-CAN/EfficientPhys/Contrast-Phys+ for real requires face-video datasets with synchronized
+  ground-truth pulse (UBFC-rPPG/PURE/VIPL-HR — §9, `VALIDATION.md`), GPU training time, and then the
+  LOSO/cross-dataset/Monk-stratified validation gate before `isDlValidatedForCondition` could honestly
+  return `true` for any condition. None of that is available in a coding-agent session — it's real ML
+  engineering + data-collection work for a future phase. Until then, the shipped scorer is
+  classical-only, which was always the documented always-available fallback (§5.3), so the product is
+  fully functional without it.
+
 ### 5.3 Fusion with the classical layer
 
 The classical layer (§4) and the DL layer both produce an HR/HRV estimate (and, for the DL layer,

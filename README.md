@@ -2,8 +2,12 @@
 
 > **Working name:** "Halo Pulse" is a provisional codename for this project and may change.
 >
-> **Status:** Planning. This repository currently contains a **plan/specification**, not shipping
-> software. See [`PLAN.md`](PLAN.md) for the full technical plan and roadmap.
+> **Status:** Working prototype. Phases 0–4 of the roadmap in [`PLAN.md`](PLAN.md) §10 are built and
+> tested — webcam capture, classical rPPG, calibration, the live Stress Index, trends/history, opt-in
+> self-report, an installable offline-capable PWA, and an accessibility pass (`apps/web/`). Two things
+> remain, by design, out of reach of a coding session and are documented rather than faked: an actual
+> trained (not just infrastructure-tested) on-device DL model, and the formal multi-subject
+> `VALIDATION.md` study — see `PLAN.md` §10.1.
 
 ## What we are building
 
@@ -57,6 +61,9 @@ This plan is split into a small doc set so each concern can be read and cited on
 | [`RESEARCH.md`](RESEARCH.md) | Annotated bibliography — the ~40 primary sources behind this plan, grouped by theme, each tied to the claim it supports. |
 | [`docs/adr/`](docs/adr/) | Architecture Decision Records for the load-bearing, hard-to-reverse choices (e.g. hybrid classical+DL rPPG, local-only privacy model, the fairness gate). |
 | `README.md` | This overview. |
+| [`apps/web/`](apps/web/) | The shipped web app (Vite + TypeScript, no framework) — see `apps/web/README.md`. |
+| `packages/{types,dsp,vision,ml}/` | Shared TypeScript packages: Zod schemas, the classical rPPG DSP, the MediaPipe wrapper, and the (spike-only, see `ARCHITECTURE.md` §5.2.1) on-device DL inference wrapper. |
+| [`research/`](research/) | The Python research harness — reference DSP implementations, golden-vector tests, and the DL-inference-spike model exporter. Never shipped with the product (`ARCHITECTURE.md` §8). |
 
 ## How this repo changed
 

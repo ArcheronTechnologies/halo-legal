@@ -216,6 +216,16 @@
           <button id="deleteAllBtn" type="button" class="danger">Delete all data</button>
           <button id="revokeConsentBtn" type="button" class="danger">Revoke consent</button>
         </div>
+
+        <h3>Experimental</h3>
+        <p class="privacy-note">
+          Measures on-device deep-learning inference speed using an untrained placeholder model —
+          a feasibility spike (PLAN.md §10 Phase 0), never a real stress reading.
+        </p>
+        <div class="controls">
+          <button id="dlSpikeBtn" type="button">Measure DL inference latency</button>
+          <span id="dlSpikeResult" class="status-line" aria-live="polite"></span>
+        </div>
       </section>
     </main>
     <script type="module" src="/src/main.ts"></script>

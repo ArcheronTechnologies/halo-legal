@@ -36,6 +36,16 @@ export default defineConfig({
         // fully offline (no CDN fetch — everything is already self-hosted, PLAN.md §7).
         globPatterns: ["**/*.{js,css,html,wasm,task,png,svg}"],
         maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
+        // The DL-inference-latency spike (dlInferenceSpike.ts) is an "Experimental" Settings-
+        // screen button, not part of the core offline promise the rest of this precache exists
+        // for — its onnxruntime-web WASM runtime alone is ~40MB (its WebGPU/JSEP variant is
+        // larger than the entire rest of the precache combined). Best-effort/online-only for that
+        // one feature is the right tradeoff rather than doubling the app's install size.
+        // Two patterns because the same file shows up twice: once under ort-spike/ (copied by
+        // copy-dl-spike-assets.mjs for the explicit self-hosted wasmPaths onnxruntime-web is
+        // configured with) and once under assets/ (Vite's own static analysis of the dynamically
+        // imported onnxruntime-web chunk independently detects and copies its wasm reference).
+        globIgnores: ["ort-spike/**", "**/*jsep*.wasm"],
       },
     }),
   ],
