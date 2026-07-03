@@ -11,16 +11,24 @@ export interface StressGaugeElements {
   fillPath: SVGPathElement;
   valueText: SVGTextElement;
   bandText: SVGTextElement;
+  /**
+   * A visually-hidden `aria-live` region OUTSIDE the SVG. The gauge SVG carries `role="img"`,
+   * which per SVG accessibility semantics flattens it to a single opaque image for assistive
+   * tech — its nested `<text>` elements stop being exposed as the value changes. This sibling
+   * element is how a live-updating numeric value/band actually reaches a screen reader.
+   */
+  liveText: HTMLElement;
 }
 
 export function getGaugeElements(root: ParentNode): StressGaugeElements {
   const fillPath = root.querySelector<SVGPathElement>("#gaugeFill");
   const valueText = root.querySelector<SVGTextElement>("#gaugeValue");
   const bandText = root.querySelector<SVGTextElement>("#gaugeBand");
-  if (!fillPath || !valueText || !bandText) {
+  const liveText = root.querySelector<HTMLElement>("#gaugeLiveText");
+  if (!fillPath || !valueText || !bandText || !liveText) {
     throw new Error("getGaugeElements: gauge SVG markup is missing an expected element");
   }
-  return { fillPath, valueText, bandText };
+  return { fillPath, valueText, bandText, liveText };
 }
 
 /**
@@ -39,6 +47,7 @@ export function updateStressGauge(
   elements.fillPath.style.strokeDashoffset = String(100 - clamped);
   elements.valueText.textContent = clamped.toFixed(0);
   elements.bandText.textContent = BAND_LABELS[band];
+  elements.liveText.textContent = `Stress index: ${clamped.toFixed(0)}, ${BAND_LABELS[band]}`;
 }
 
 /** Resets the gauge to empty with a caller-supplied label — "Not calibrated" vs. "Session stopped"
@@ -47,4 +56,5 @@ export function resetStressGauge(elements: StressGaugeElements, label: string): 
   elements.fillPath.style.strokeDashoffset = "100";
   elements.valueText.textContent = "--";
   elements.bandText.textContent = label;
+  elements.liveText.textContent = label;
 }

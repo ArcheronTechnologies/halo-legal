@@ -36,7 +36,7 @@
           baseline — everything else is measured as a change from <em>this</em>, not an absolute
           number.
         </p>
-        <div class="video-wrap">
+        <div class="video-wrap" aria-hidden="true">
           <video id="calibrationVideo" autoplay playsinline muted></video>
         </div>
         <p id="calibrationStatus" class="status-line" aria-live="polite">Preparing...</p>
@@ -58,7 +58,7 @@
       <!-- Screen 3: main / live session -->
       <section id="mainScreen" class="screen" hidden>
         <div class="capture-area">
-          <div class="video-wrap">
+          <div class="video-wrap" aria-hidden="true">
             <video id="video" autoplay playsinline muted></video>
             <canvas id="overlay"></canvas>
           </div>
@@ -70,6 +70,9 @@
               <text id="gaugeValue" x="100" y="90" text-anchor="middle" class="gauge-value">--</text>
               <text id="gaugeBand" x="100" y="110" text-anchor="middle" class="gauge-band">Not calibrated</text>
             </svg>
+            <!-- role="img" on the SVG above flattens its nested <text> for assistive tech, so the
+                 live value/band is announced through this sibling live region instead. -->
+            <div id="gaugeLiveText" class="visually-hidden" aria-live="polite">Not calibrated</div>
           </div>
 
           <div class="readout" aria-live="polite">
@@ -105,6 +108,29 @@
         <p id="recalibrationHint" class="status-line hint" hidden>
           Your baseline is over a month old — consider re-calibrating.
         </p>
+
+        <!-- Optional breathing-exercise insight (PLAN.md §8/§10 Phase 4), offered once per
+             session after a sustained elevated/high reading — never forced, easy to dismiss. -->
+        <div id="breathingOffer" class="breathing-offer" hidden>
+          <p>Your stress index has stayed elevated for a bit. Want to try a short breathing exercise?</p>
+          <div class="controls">
+            <button id="breathingStartBtn" type="button">Start breathing exercise</button>
+            <button id="breathingDismissBtn" type="button">No thanks</button>
+          </div>
+        </div>
+
+        <div id="breathingExercise" class="breathing-exercise" hidden>
+          <div class="breathing-circle-wrap">
+            <svg viewBox="0 0 200 200" class="breathing-circle-svg" role="img" aria-label="Breathing pace guide">
+              <circle cx="100" cy="100" r="30" id="breathingCircle" class="breathing-circle-shape" />
+            </svg>
+            <p id="breathingPhaseText" class="breathing-phase-text" aria-live="polite">Breathe in (4)</p>
+          </div>
+          <p id="breathingCycleCount" class="status-line" aria-live="polite">0 cycles completed</p>
+          <div class="controls">
+            <button id="breathingStopBtn" type="button">Done</button>
+          </div>
+        </div>
 
         <!-- Opt-in post-session self-report (PLAN.md §10 Phase 3 "labelled-session capture") -->
         <div id="selfReportPrompt" class="self-report-prompt" hidden>

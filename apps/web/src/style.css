@@ -13,7 +13,11 @@
   --page: #f9f9f7;
   --text-primary: #0b0b0b;
   --text-secondary: #52514e;
-  --text-muted: #898781;
+  /* palette.md's reference #898781 is 3.4:1 here — fine for a chart-axis-scale label, but this
+     value is also used for real UI text (stat labels, privacy notes), which needs the stricter
+     4.5:1 body-text threshold. Darkened to #6b6b6b (~5.1:1) so every current use passes WCAG AA;
+     confirmed with axe-core, not just computed — see the Phase 4 accessibility pass. */
+  --text-muted: #6b6b6b;
   --border: rgba(11, 11, 11, 0.1);
 
   --gauge-track: #b7d3f6; /* sequential step 150 */
@@ -49,6 +53,20 @@ body {
   justify-content: center;
   background: var(--page);
   color: var(--text-primary);
+}
+
+/* Standard "sr-only" technique: present to assistive tech, removed from visual layout without
+ * `display:none`/`visibility:hidden`, which would also remove it from the accessibility tree. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .app {
@@ -242,6 +260,15 @@ button:disabled {
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border);
+}
+
+/* An explicit `display` above an equal-specificity `[hidden]` selector wins the UA stylesheet's
+ * default `[hidden] { display: none }` rule at author-vs-UA level, so `.hidden = true` alone
+ * would silently stop working the moment an element gets its own `display` declaration —
+ * restated explicitly here and by every other `display`-bearing element that gets toggled via
+ * the `hidden` attribute (see `.breathing-exercise[hidden]` below). */
+.app-nav[hidden] {
+  display: none;
 }
 
 .nav-btn {
@@ -491,4 +518,60 @@ button.danger {
   align-items: center;
   gap: 0.3rem;
   font-weight: normal;
+}
+
+/* --- Breathing exercise (Phase 4, PLAN.md §8) --- */
+
+.breathing-offer {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+}
+
+.breathing-exercise {
+  margin-top: 1rem;
+  padding: 1.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.breathing-exercise[hidden] {
+  display: none;
+}
+
+.breathing-circle-wrap {
+  position: relative;
+  width: 200px;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.breathing-circle-svg {
+  width: 100%;
+  height: auto;
+}
+
+.breathing-circle-shape {
+  fill: var(--gauge-track);
+  stroke: var(--gauge-fill);
+  stroke-width: 2;
+  /* A gentle continuous ease rather than per-frame jumps — the RAF loop still updates every
+     frame, but this softens the visual step between updates on lower frame rates. */
+  transition: r 0.15s linear;
+}
+
+.breathing-phase-text {
+  position: absolute;
+  font-size: 1rem;
+  font-weight: 500;
+  text-align: center;
 }

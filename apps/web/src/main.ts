@@ -1,4 +1,12 @@
 import type { Baseline, ConfounderTag, Sample } from "@halo-pulse/types";
+import { DEFAULT_BREATHING_CYCLE } from "./breathing/cycle.js";
+import { startBreathingLoop } from "./breathing/loop.js";
+import { getBreathingExerciseElements, renderBreathingTick } from "./breathing/render.js";
+import {
+  type BreathingTriggerState,
+  initialBreathingTriggerState,
+  stepBreathingTrigger,
+} from "./breathing/trigger.js";
 import { CalibrationCollector } from "./calibration/collector.js";
 import { finalizeCalibration } from "./calibration/runCalibration.js";
 import { samplesToCsv, sessionsToCsv } from "./export/csv.js";
@@ -83,10 +91,17 @@ const selfReportRatingValue = document.getElementById("selfReportRatingValue") a
 const selfReportSaveBtn = document.getElementById("selfReportSaveBtn") as HTMLButtonElement;
 const selfReportSkipBtn = document.getElementById("selfReportSkipBtn") as HTMLButtonElement;
 
+const breathingOffer = document.getElementById("breathingOffer") as HTMLElement;
+const breathingStartBtn = document.getElementById("breathingStartBtn") as HTMLButtonElement;
+const breathingDismissBtn = document.getElementById("breathingDismissBtn") as HTMLButtonElement;
+const breathingExercise = document.getElementById("breathingExercise") as HTMLElement;
+const breathingStopBtn = document.getElementById("breathingStopBtn") as HTMLButtonElement;
+
 const overlayCtx = overlayEl.getContext("2d") as CanvasRenderingContext2D;
 const gaugeElements = getGaugeElements(document);
 const historyElements = getHistoryScreenElements(document);
 const settingsElements = getSettingsScreenElements(document);
+const breathingElements = getBreathingExerciseElements(document);
 const settingsForm = document.getElementById("settingsForm") as HTMLFormElement;
 
 type Screen = "consent" | "calibration" | "main" | "history" | "settings";
@@ -225,6 +240,7 @@ let sessionSamples: Sample[] = [];
 let sessionId = "";
 let sessionStartedAtMs = 0;
 let smoothedIndex: number | null = null;
+let breathingTriggerState: BreathingTriggerState = initialBreathingTriggerState();
 
 function setStatus(text: string): void {
   statusEl.textContent = text;
@@ -242,6 +258,9 @@ async function startLive(): Promise<void> {
   sessionSamples = [];
   sessionId = crypto.randomUUID();
   smoothedIndex = null;
+  breathingTriggerState = initialBreathingTriggerState();
+  breathingOffer.hidden = true;
+  stopBreathingExercise();
 
   try {
     liveSession = await startPipelineSession(videoEl, {
@@ -295,6 +314,12 @@ function handleLiveWindow(
         (1 - GAUGE_SMOOTHING_ALPHA) * smoothedIndex;
   updateStressGauge(gaugeElements, smoothedIndex, stressResult.band);
 
+  const breathingStep = stepBreathingTrigger(breathingTriggerState, stressResult.band);
+  breathingTriggerState = breathingStep.state;
+  if (breathingStep.shouldOffer) {
+    breathingOffer.hidden = false;
+  }
+
   sessionSamples.push({
     id: crypto.randomUUID(),
     sessionId,
@@ -345,7 +370,33 @@ function stopLive(): void {
   resetStressGauge(gaugeElements, "Session stopped");
   startBtn.disabled = false;
   stopBtn.disabled = true;
+  breathingOffer.hidden = true;
+  stopBreathingExercise();
 }
+
+// --- Breathing exercise (PLAN.md §8/§10 Phase 4, optional, offered at most once per session) ---
+let stopBreathingLoopFn: (() => void) | null = null;
+
+function startBreathingExercise(): void {
+  breathingOffer.hidden = true;
+  breathingExercise.hidden = false;
+  stopBreathingLoopFn?.();
+  stopBreathingLoopFn = startBreathingLoop(DEFAULT_BREATHING_CYCLE, (tick) => {
+    renderBreathingTick(breathingElements, tick);
+  });
+}
+
+function stopBreathingExercise(): void {
+  stopBreathingLoopFn?.();
+  stopBreathingLoopFn = null;
+  breathingExercise.hidden = true;
+}
+
+breathingStartBtn.addEventListener("click", startBreathingExercise);
+breathingDismissBtn.addEventListener("click", () => {
+  breathingOffer.hidden = true;
+});
+breathingStopBtn.addEventListener("click", stopBreathingExercise);
 
 // --- Self-report prompt (PLAN.md §10 Phase 3 "labelled-session capture", opt-in) ---
 let pendingSelfReportSessionId: string | null = null;
