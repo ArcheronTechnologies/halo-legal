@@ -2,7 +2,7 @@ import "./testSetup.js";
 import type { Sample, Session } from "@halo-pulse/types";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { HaloPulseDb } from "./db.js";
-import { getSamplesForSession, listSessions, saveSession } from "./sessions.js";
+import { addSelfReport, getSamplesForSession, listSessions, saveSession } from "./sessions.js";
 
 let db: HaloPulseDb;
 
@@ -82,5 +82,37 @@ describe("sessions store", () => {
 
     const sessions = await listSessions(db, "local");
     expect(sessions.map((s) => s.id)).toEqual(["s-early", "s-late"]);
+  });
+});
+
+describe("addSelfReport", () => {
+  it("attaches a self-report to an existing session", async () => {
+    await saveSession(db, makeSession({ id: "s1" }), []);
+    await addSelfReport(db, "s1", {
+      stressRating: 7,
+      confounders: ["caffeine"],
+      reportedAt: 12345,
+    });
+
+    const [session] = await listSessions(db, "local");
+    expect(session?.selfReport).toEqual({
+      stressRating: 7,
+      confounders: ["caffeine"],
+      reportedAt: 12345,
+    });
+  });
+
+  it("throws for a session id that does not exist", async () => {
+    await expect(
+      addSelfReport(db, "does-not-exist", { stressRating: 5, confounders: [], reportedAt: 0 }),
+    ).rejects.toThrow();
+  });
+
+  it("does not disturb the rest of the session record", async () => {
+    await saveSession(db, makeSession({ id: "s1", hrMean: 82 }), []);
+    await addSelfReport(db, "s1", { stressRating: 3, confounders: [], reportedAt: 1 });
+
+    const [session] = await listSessions(db, "local");
+    expect(session?.hrMean).toBe(82);
   });
 });

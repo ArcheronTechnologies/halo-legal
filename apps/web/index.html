@@ -102,6 +102,31 @@
             Show ROI overlay
           </label>
         </div>
+        <p id="recalibrationHint" class="status-line hint" hidden>
+          Your baseline is over a month old — consider re-calibrating.
+        </p>
+
+        <!-- Opt-in post-session self-report (PLAN.md §10 Phase 3 "labelled-session capture") -->
+        <div id="selfReportPrompt" class="self-report-prompt" hidden>
+          <p>How stressed did you feel during that session?</p>
+          <div class="self-report-rating">
+            <input type="range" id="selfReportRating" min="0" max="10" step="1" value="5" />
+            <output id="selfReportRatingValue" for="selfReportRating">5</output>
+          </div>
+          <fieldset class="confounders">
+            <legend>Anything that might have affected this? (optional)</legend>
+            <label><input type="checkbox" class="confounder-checkbox" value="caffeine" /> Caffeine</label>
+            <label><input type="checkbox" class="confounder-checkbox" value="exercise" /> Exercise</label>
+            <label><input type="checkbox" class="confounder-checkbox" value="illness" /> Illness</label>
+            <label><input type="checkbox" class="confounder-checkbox" value="poor_sleep" /> Poor sleep</label>
+            <label><input type="checkbox" class="confounder-checkbox" value="alcohol" /> Alcohol</label>
+            <label><input type="checkbox" class="confounder-checkbox" value="talking_a_lot" /> Talking a lot</label>
+          </fieldset>
+          <div class="controls">
+            <button id="selfReportSaveBtn" type="button">Save rating</button>
+            <button id="selfReportSkipBtn" type="button">Skip</button>
+          </div>
+        </div>
 
         <p class="privacy-note">
           Video is processed only in memory in this browser tab and is never uploaded or recorded.
@@ -121,6 +146,7 @@
         <div id="heatmapContainer" class="chart-container heatmap-container"></div>
 
         <h3>Sessions</h3>
+        <p id="selfReportInsight" class="status-line"></p>
         <ul id="sessionList" class="session-list"></ul>
       </section>
 

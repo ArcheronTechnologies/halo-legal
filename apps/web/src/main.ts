@@ -1,4 +1,4 @@
-import type { Baseline, Sample } from "@halo-pulse/types";
+import type { Baseline, ConfounderTag, Sample } from "@halo-pulse/types";
 import { CalibrationCollector } from "./calibration/collector.js";
 import { finalizeCalibration } from "./calibration/runCalibration.js";
 import { samplesToCsv, sessionsToCsv } from "./export/csv.js";
@@ -8,6 +8,8 @@ import { computeTimeOfDayHeatmap } from "./history/heatmap.js";
 import { getHistoryScreenElements, renderHistoryScreen } from "./history/historyView.js";
 import { detectTrend } from "./history/trend.js";
 import { clearOverlay, drawRoiOverlay } from "./overlay.js";
+import { shouldSuggestRecalibration } from "./personalization/recalibration.js";
+import { computeSelfReportCorrelation } from "./personalization/selfReportInsight.js";
 import { type PipelineSession, startPipelineSession } from "./pipelineSession.js";
 import { computeStressIndex } from "./scoring/composite.js";
 import type { WindowFeatures } from "./scoring/features.js";
@@ -21,7 +23,12 @@ import { getActiveBaseline } from "./store/baselines.js";
 import { db, LOCAL_PROFILE_ID } from "./store/db.js";
 import { buildExportBundle, deleteAllData } from "./store/exportData.js";
 import { recomputeRollups } from "./store/rollups.js";
-import { getAllSamplesForProfile, listSessions, saveSession } from "./store/sessions.js";
+import {
+  addSelfReport,
+  getAllSamplesForProfile,
+  listSessions,
+  saveSession,
+} from "./store/sessions.js";
 import {
   getOrCreateSettings,
   grantConsent,
@@ -68,6 +75,13 @@ const startBtn = document.getElementById("startBtn") as HTMLButtonElement;
 const stopBtn = document.getElementById("stopBtn") as HTMLButtonElement;
 const recalibrateBtn = document.getElementById("recalibrateBtn") as HTMLButtonElement;
 const overlayToggle = document.getElementById("overlayToggle") as HTMLInputElement;
+const recalibrationHint = document.getElementById("recalibrationHint") as HTMLElement;
+
+const selfReportPrompt = document.getElementById("selfReportPrompt") as HTMLElement;
+const selfReportRating = document.getElementById("selfReportRating") as HTMLInputElement;
+const selfReportRatingValue = document.getElementById("selfReportRatingValue") as HTMLOutputElement;
+const selfReportSaveBtn = document.getElementById("selfReportSaveBtn") as HTMLButtonElement;
+const selfReportSkipBtn = document.getElementById("selfReportSkipBtn") as HTMLButtonElement;
 
 const overlayCtx = overlayEl.getContext("2d") as CanvasRenderingContext2D;
 const gaugeElements = getGaugeElements(document);
@@ -95,6 +109,18 @@ function showScreen(screen: Screen): void {
   }
 }
 
+/** Recalibration cadence guidance (PLAN.md §10 Phase 3, §11 "best default re-cal cadence" —
+ * open question, so this is a gentle hint, not an enforced gate). */
+async function refreshRecalibrationHint(): Promise<void> {
+  const baseline = await getActiveBaseline(db, LOCAL_PROFILE_ID);
+  recalibrationHint.hidden = !baseline || !shouldSuggestRecalibration(baseline, Date.now());
+}
+
+function goToMain(): void {
+  showScreen("main");
+  refreshRecalibrationHint().catch((err) => console.error("failed to check baseline age:", err));
+}
+
 // --- Boot: figure out which screen to show first ---
 async function boot(): Promise<void> {
   if (!(await hasConsent(db))) {
@@ -107,7 +133,7 @@ async function boot(): Promise<void> {
     startCalibration();
     return;
   }
-  showScreen("main");
+  goToMain();
 }
 
 consentBtn.addEventListener("click", () => {
@@ -115,7 +141,7 @@ consentBtn.addEventListener("click", () => {
     .then(() => getActiveBaseline(db, LOCAL_PROFILE_ID))
     .then((baseline) => {
       if (baseline) {
-        showScreen("main");
+        goToMain();
       } else {
         showScreen("calibration");
         startCalibration();
@@ -179,7 +205,7 @@ function finishCalibration(collector: CalibrationCollector): void {
         setTimeout(startCalibration, 3000);
         return;
       }
-      showScreen("main");
+      goToMain();
     })
     .catch((err) => {
       calibrationStatusEl.textContent = `Error: ${err instanceof Error ? err.message : String(err)}`;
@@ -189,7 +215,8 @@ function finishCalibration(collector: CalibrationCollector): void {
 calibrationCancelBtn.addEventListener("click", async () => {
   stopCalibrationSession();
   const baseline = await getActiveBaseline(db, LOCAL_PROFILE_ID);
-  showScreen(baseline ? "main" : "consent");
+  if (baseline) goToMain();
+  else showScreen("consent");
 });
 
 // --- Main / live session screen ---
@@ -291,12 +318,13 @@ function handleLiveWindow(
 function stopLive(): void {
   liveSession?.stop();
   liveSession = null;
+  const endedSessionId = sessionId;
 
   if (sessionSamples.length > 0) {
     getActiveBaseline(db, LOCAL_PROFILE_ID)
       .then((baseline) => {
         const summary = buildSessionSummary(sessionSamples, {
-          id: sessionId,
+          id: endedSessionId,
           profileId: LOCAL_PROFILE_ID,
           baselineId: baseline?.id ?? "unknown",
           startedAt: sessionStartedAtMs,
@@ -305,6 +333,7 @@ function stopLive(): void {
         });
         return saveSession(db, summary, sessionSamples);
       })
+      .then(() => showSelfReportPrompt(endedSessionId))
       .catch((err) => console.error("failed to save session:", err));
   }
 
@@ -317,6 +346,47 @@ function stopLive(): void {
   startBtn.disabled = false;
   stopBtn.disabled = true;
 }
+
+// --- Self-report prompt (PLAN.md §10 Phase 3 "labelled-session capture", opt-in) ---
+let pendingSelfReportSessionId: string | null = null;
+
+function showSelfReportPrompt(forSessionId: string): void {
+  pendingSelfReportSessionId = forSessionId;
+  selfReportRating.value = "5";
+  selfReportRatingValue.textContent = "5";
+  for (const checkbox of document.querySelectorAll<HTMLInputElement>(".confounder-checkbox")) {
+    checkbox.checked = false;
+  }
+  selfReportPrompt.hidden = false;
+}
+
+function hideSelfReportPrompt(): void {
+  selfReportPrompt.hidden = true;
+  pendingSelfReportSessionId = null;
+}
+
+selfReportRating.addEventListener("input", () => {
+  selfReportRatingValue.textContent = selfReportRating.value;
+});
+
+selfReportSaveBtn.addEventListener("click", () => {
+  if (!pendingSelfReportSessionId) return;
+  const confounders = Array.from(
+    document.querySelectorAll<HTMLInputElement>(".confounder-checkbox"),
+  )
+    .filter((checkbox) => checkbox.checked)
+    .map((checkbox) => checkbox.value as ConfounderTag);
+
+  addSelfReport(db, pendingSelfReportSessionId, {
+    stressRating: Number(selfReportRating.value),
+    confounders,
+    reportedAt: Date.now(),
+  })
+    .then(hideSelfReportPrompt)
+    .catch((err) => console.error("failed to save self-report:", err));
+});
+
+selfReportSkipBtn.addEventListener("click", hideSelfReportPrompt);
 
 startBtn.addEventListener("click", () => {
   startLive().catch((err) => {
@@ -347,6 +417,7 @@ async function refreshHistoryScreen(): Promise<void> {
     rollups,
     heatmapCells: computeTimeOfDayHeatmap(samples),
     trend: detectTrend(rollups),
+    selfReportInsight: computeSelfReportCorrelation(sessions),
   });
 }
 
@@ -367,7 +438,7 @@ navSettingsBtn.addEventListener("click", () => {
   refreshSettingsScreen().catch((err) => console.error("failed to load settings:", err));
 });
 
-navLiveBtn.addEventListener("click", () => showScreen("main"));
+navLiveBtn.addEventListener("click", goToMain);
 
 settingsForm.addEventListener("submit", (ev) => {
   ev.preventDefault();

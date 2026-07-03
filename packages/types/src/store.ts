@@ -46,6 +46,31 @@ export const hrvSummarySchema = z.object({
   lfhf: z.number().nullable(),
 });
 
+/**
+ * Common non-psychological drivers of HR/HRV, so a labelled session can carry the context that
+ * would otherwise confound it (PLAN.md §2.3 "Confounders") — recorded, not yet corrected for.
+ */
+export const confounderTagSchema = z.enum([
+  "caffeine",
+  "exercise",
+  "illness",
+  "poor_sleep",
+  "alcohol",
+  "talking_a_lot",
+]);
+export type ConfounderTag = z.infer<typeof confounderTagSchema>;
+
+/**
+ * Opt-in post-session self-report (PLAN.md §10 Phase 3 "labelled-session capture"). `stressRating`
+ * is a 0-10 VAS-style scale the user sets themselves, independent of anything the app computed.
+ */
+export const selfReportSchema = z.object({
+  stressRating: z.number().min(0).max(10),
+  confounders: z.array(confounderTagSchema),
+  reportedAt: z.number(),
+});
+export type SelfReport = z.infer<typeof selfReportSchema>;
+
 export const sessionSchema = z.object({
   id: z.string(),
   profileId: z.string(),
@@ -59,6 +84,8 @@ export const sessionSchema = z.object({
   hrMean: z.number(),
   hrvSummary: hrvSummarySchema,
   sqiMean: z.number().min(0).max(1),
+  /** Absent until/unless the user opts in on the post-session prompt. */
+  selfReport: selfReportSchema.optional(),
 });
 export type Session = z.infer<typeof sessionSchema>;
 

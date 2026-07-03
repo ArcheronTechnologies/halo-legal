@@ -1,5 +1,6 @@
 import type { Rollup, Session } from "@halo-pulse/types";
-import { formatSessionRow, formatTrendSummary } from "./format.js";
+import type { SelfReportInsight } from "../personalization/selfReportInsight.js";
+import { formatSelfReportInsight, formatSessionRow, formatTrendSummary } from "./format.js";
 import type { HeatmapCell } from "./heatmap.js";
 import { renderHeatmap } from "./heatmapView.js";
 import type { TrendResult } from "./trend.js";
@@ -10,6 +11,7 @@ export interface HistoryScreenElements {
   trendChartContainer: HTMLElement;
   heatmapContainer: HTMLElement;
   sessionList: HTMLElement;
+  selfReportInsight: HTMLElement;
 }
 
 export function getHistoryScreenElements(root: ParentNode): HistoryScreenElements {
@@ -17,12 +19,19 @@ export function getHistoryScreenElements(root: ParentNode): HistoryScreenElement
   const trendChartContainer = root.querySelector<HTMLElement>("#trendChartContainer");
   const heatmapContainer = root.querySelector<HTMLElement>("#heatmapContainer");
   const sessionList = root.querySelector<HTMLElement>("#sessionList");
-  if (!trendSummary || !trendChartContainer || !heatmapContainer || !sessionList) {
+  const selfReportInsight = root.querySelector<HTMLElement>("#selfReportInsight");
+  if (
+    !trendSummary ||
+    !trendChartContainer ||
+    !heatmapContainer ||
+    !sessionList ||
+    !selfReportInsight
+  ) {
     throw new Error(
       "getHistoryScreenElements: history screen markup is missing an expected element",
     );
   }
-  return { trendSummary, trendChartContainer, heatmapContainer, sessionList };
+  return { trendSummary, trendChartContainer, heatmapContainer, sessionList, selfReportInsight };
 }
 
 function buildSessionRow(session: Session): HTMLLIElement {
@@ -47,6 +56,14 @@ function buildSessionRow(session: Session): HTMLLIElement {
   peak.textContent = `peak ${row.peakLabel}`;
 
   li.append(date, duration, mean, peak);
+
+  if (row.ratingLabel) {
+    const rating = document.createElement("span");
+    rating.className = "session-rating";
+    rating.textContent = row.ratingLabel;
+    li.appendChild(rating);
+  }
+
   return li;
 }
 
@@ -55,6 +72,7 @@ export interface HistoryScreenData {
   rollups: Rollup[];
   heatmapCells: HeatmapCell[];
   trend: TrendResult | null;
+  selfReportInsight: SelfReportInsight;
 }
 
 export function renderHistoryScreen(
@@ -64,6 +82,7 @@ export function renderHistoryScreen(
   elements.trendSummary.textContent = formatTrendSummary(data.trend);
   renderTrendChart(elements.trendChartContainer, data.rollups);
   renderHeatmap(elements.heatmapContainer, data.heatmapCells);
+  elements.selfReportInsight.textContent = formatSelfReportInsight(data.selfReportInsight);
 
   elements.sessionList.innerHTML = "";
   if (data.sessions.length === 0) {

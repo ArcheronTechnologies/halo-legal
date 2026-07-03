@@ -1,7 +1,9 @@
 import type { Session } from "@halo-pulse/types";
 import { describe, expect, it } from "vitest";
+import type { SelfReportInsight } from "../personalization/selfReportInsight.js";
 import {
   formatDuration,
+  formatSelfReportInsight,
   formatSessionDate,
   formatSessionRow,
   formatTrendSummary,
@@ -55,7 +57,15 @@ describe("formatSessionRow", () => {
       durationLabel: "2 min",
       meanLabel: "62",
       peakLabel: "89",
+      ratingLabel: null,
     });
+  });
+
+  it("includes a rating label when the session has a self-report", () => {
+    const row = formatSessionRow(
+      makeSession({ selfReport: { stressRating: 7, confounders: [], reportedAt: 0 } }),
+    );
+    expect(row.ratingLabel).toBe("you rated 7/10");
   });
 });
 
@@ -98,6 +108,43 @@ describe("formatTrendSummary", () => {
     };
     expect(formatTrendSummary(trend)).toBe(
       "Trending down over the last 7 days (5 days with data).",
+    );
+  });
+});
+
+describe("formatSelfReportInsight", () => {
+  it("invites the first rating when there are none yet", () => {
+    const insight: SelfReportInsight = { sampleCount: 0, correlation: null };
+    expect(formatSelfReportInsight(insight)).toBe(
+      "Rate how a session felt afterward to see how well the index matches your own sense of it.",
+    );
+  });
+
+  it("uses singular 'session' for exactly one rated session", () => {
+    const insight: SelfReportInsight = { sampleCount: 1, correlation: null };
+    expect(formatSelfReportInsight(insight)).toBe(
+      "1 session rated so far — rate a few more to see how well the index matches how you actually felt.",
+    );
+  });
+
+  it("uses plural for multiple rated sessions still below the threshold", () => {
+    const insight: SelfReportInsight = { sampleCount: 3, correlation: null };
+    expect(formatSelfReportInsight(insight)).toBe(
+      "3 sessions rated so far — rate a few more to see how well the index matches how you actually felt.",
+    );
+  });
+
+  it("reports the correlation once there is enough data (hand-derived rounding)", () => {
+    const insight: SelfReportInsight = { sampleCount: 8, correlation: 0.7234 };
+    expect(formatSelfReportInsight(insight)).toBe(
+      "Across 8 rated sessions, the index has correlated with your own ratings at r=0.72.",
+    );
+  });
+
+  it("formats a negative correlation correctly", () => {
+    const insight: SelfReportInsight = { sampleCount: 6, correlation: -0.5 };
+    expect(formatSelfReportInsight(insight)).toBe(
+      "Across 6 rated sessions, the index has correlated with your own ratings at r=-0.50.",
     );
   });
 });

@@ -1,4 +1,4 @@
-import type { Sample, Session } from "@halo-pulse/types";
+import type { Sample, SelfReport, Session } from "@halo-pulse/types";
 import type { HaloPulseDb } from "./db.js";
 
 /** Persists a completed session and its samples together in one transaction. */
@@ -17,6 +17,18 @@ export async function saveSession(
 
 export async function listSessions(db: HaloPulseDb, profileId: string): Promise<Session[]> {
   return db.sessions.where("profileId").equals(profileId).sortBy("startedAt");
+}
+
+/** Attaches an opt-in post-session self-report (PLAN.md §10 Phase 3) to an already-saved session. */
+export async function addSelfReport(
+  db: HaloPulseDb,
+  sessionId: string,
+  selfReport: SelfReport,
+): Promise<void> {
+  const updated = await db.sessions.update(sessionId, { selfReport });
+  if (updated === 0) {
+    throw new Error(`addSelfReport: no session found with id ${sessionId}`);
+  }
 }
 
 export async function getSamplesForSession(db: HaloPulseDb, sessionId: string): Promise<Sample[]> {

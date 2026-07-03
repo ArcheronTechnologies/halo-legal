@@ -1,4 +1,5 @@
 import type { Session } from "@halo-pulse/types";
+import type { SelfReportInsight } from "../personalization/selfReportInsight.js";
 import type { TrendResult } from "./trend.js";
 
 function pad2(n: number): string {
@@ -25,6 +26,8 @@ export interface SessionRowLabel {
   durationLabel: string;
   meanLabel: string;
   peakLabel: string;
+  /** "you rated 7/10", absent when the session has no self-report. */
+  ratingLabel: string | null;
 }
 
 export function formatSessionRow(session: Session): SessionRowLabel {
@@ -33,6 +36,7 @@ export function formatSessionRow(session: Session): SessionRowLabel {
     durationLabel: formatDuration(session.startedAt, session.endedAt),
     meanLabel: session.stressIndexMean.toFixed(0),
     peakLabel: session.stressIndexPeak.toFixed(0),
+    ratingLabel: session.selfReport ? `you rated ${session.selfReport.stressRating}/10` : null,
   };
 }
 
@@ -44,4 +48,18 @@ export function formatTrendSummary(trend: TrendResult | null): string {
   if (trend.direction === "flat") return `Fairly stable over ${period}.`;
   const verb = trend.direction === "up" ? "up" : "down";
   return `Trending ${verb} over ${period} (${trend.dataPointCount} days with data).`;
+}
+
+/** A plain, honest "how well does the index match how you actually feel" sentence — a
+ * transparency figure, never framed as validated personalization (see the note on
+ * computeSelfReportCorrelation). */
+export function formatSelfReportInsight(insight: SelfReportInsight): string {
+  if (insight.correlation === null) {
+    if (insight.sampleCount === 0) {
+      return "Rate how a session felt afterward to see how well the index matches your own sense of it.";
+    }
+    const noun = insight.sampleCount === 1 ? "session" : "sessions";
+    return `${insight.sampleCount} ${noun} rated so far — rate a few more to see how well the index matches how you actually felt.`;
+  }
+  return `Across ${insight.sampleCount} rated sessions, the index has correlated with your own ratings at r=${insight.correlation.toFixed(2)}.`;
 }
