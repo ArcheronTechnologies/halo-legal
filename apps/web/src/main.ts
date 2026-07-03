@@ -19,7 +19,7 @@ import { clearOverlay, drawRoiOverlay } from "./overlay.js";
 import { shouldSuggestRecalibration } from "./personalization/recalibration.js";
 import { computeSelfReportCorrelation } from "./personalization/selfReportInsight.js";
 import { type PipelineSession, startPipelineSession } from "./pipelineSession.js";
-import { computeStressIndex } from "./scoring/composite.js";
+import { bandFor, computeStressIndex } from "./scoring/composite.js";
 import type { WindowFeatures } from "./scoring/features.js";
 import { buildSessionSummary } from "./sessionSummary.js";
 import {
@@ -168,8 +168,13 @@ consentBtn.addEventListener("click", () => {
 // --- Calibration screen ---
 let calibrationSession: PipelineSession | null = null;
 let calibrationTimer: ReturnType<typeof setInterval> | null = null;
+// Bumped on every stop/restart so a `startPipelineSession` resolving after its run was cancelled
+// (e.g. Cancel clicked while the camera permission prompt is still up) can detect it's stale and
+// stop the orphaned session instead of attaching it to an abandoned screen.
+let calibrationRunId = 0;
 
 function stopCalibrationSession(): void {
+  calibrationRunId++;
   if (calibrationTimer) clearInterval(calibrationTimer);
   calibrationTimer = null;
   calibrationSession?.stop();
@@ -177,6 +182,7 @@ function stopCalibrationSession(): void {
 }
 
 function startCalibration(): void {
+  const runId = ++calibrationRunId;
   const collector = new CalibrationCollector(MIN_VALID_WINDOWS);
   const startedAtMs = Date.now();
   calibrationStatusEl.textContent = "Requesting camera...";
@@ -194,6 +200,11 @@ function startCalibration(): void {
     onError: (message) => console.warn("calibration pipeline error:", message),
   })
     .then((session) => {
+      if (runId !== calibrationRunId) {
+        // Cancelled (or superseded by another start) while getUserMedia was pending.
+        session.stop();
+        return;
+      }
       calibrationSession = session;
       calibrationTimer = setInterval(() => {
         const elapsedSec = (Date.now() - startedAtMs) / 1000;
@@ -241,6 +252,10 @@ let sessionId = "";
 let sessionStartedAtMs = 0;
 let smoothedIndex: number | null = null;
 let breathingTriggerState: BreathingTriggerState = initialBreathingTriggerState();
+// Same run-generation pattern as calibrationRunId: bumped on stop/restart so a pending
+// startPipelineSession that resolves after its run was cancelled stops itself instead of
+// attaching a live camera to a screen we've left.
+let liveRunId = 0;
 
 function setStatus(text: string): void {
   statusEl.textContent = text;
@@ -253,6 +268,7 @@ async function startLive(): Promise<void> {
     return;
   }
 
+  const runId = ++liveRunId;
   startBtn.disabled = true;
   setStatus("Requesting camera...");
   sessionSamples = [];
@@ -261,9 +277,11 @@ async function startLive(): Promise<void> {
   breathingTriggerState = initialBreathingTriggerState();
   breathingOffer.hidden = true;
   stopBreathingExercise();
+  hideSelfReportPrompt();
 
+  let session: PipelineSession;
   try {
-    liveSession = await startPipelineSession(videoEl, {
+    session = await startPipelineSession(videoEl, {
       onFaceStatus: (detected, landmarks) => {
         setStatus(detected ? "Face detected" : "No face detected");
         if (overlayToggle.checked && landmarks) {
@@ -278,11 +296,20 @@ async function startLive(): Promise<void> {
       onError: (message) => console.warn("live pipeline error:", message),
     });
   } catch (err) {
-    setStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    startBtn.disabled = false;
+    if (runId === liveRunId) {
+      setStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      startBtn.disabled = false;
+    }
     return;
   }
 
+  if (runId !== liveRunId) {
+    // Stopped (or superseded) while getUserMedia/pipeline setup was pending.
+    session.stop();
+    return;
+  }
+
+  liveSession = session;
   overlayEl.width = videoEl.videoWidth || 640;
   overlayEl.height = videoEl.videoHeight || 480;
   sessionStartedAtMs = Date.now();
@@ -312,7 +339,13 @@ function handleLiveWindow(
       ? stressResult.stressIndex
       : GAUGE_SMOOTHING_ALPHA * stressResult.stressIndex +
         (1 - GAUGE_SMOOTHING_ALPHA) * smoothedIndex;
-  updateStressGauge(gaugeElements, smoothedIndex, stressResult.band);
+  // The gauge's number is the smoothed EMA, so its band label must be derived from that same
+  // smoothed value — labelling it with the raw stressResult.band could show e.g. "62 / High" when
+  // the raw reading spiked past a boundary the smoothed number hasn't reached. The breathing
+  // trigger below deliberately keeps using the raw band: its own 3-window debounce
+  // (breathing/trigger.ts) is what absorbs spikes there, and smoothing twice would just make it
+  // slower to react to a sustained change.
+  updateStressGauge(gaugeElements, smoothedIndex, bandFor(smoothedIndex));
 
   const breathingStep = stepBreathingTrigger(breathingTriggerState, stressResult.band);
   breathingTriggerState = breathingStep.state;
@@ -341,6 +374,7 @@ function handleLiveWindow(
 }
 
 function stopLive(): void {
+  liveRunId++;
   liveSession?.stop();
   liveSession = null;
   const endedSessionId = sessionId;
@@ -449,7 +483,10 @@ startBtn.addEventListener("click", () => {
 stopBtn.addEventListener("click", stopLive);
 
 recalibrateBtn.addEventListener("click", () => {
-  if (liveSession) stopLive();
+  // Unconditional: also invalidates a startLive() still awaiting getUserMedia (liveSession is
+  // still null at that point), so that pending session stops itself instead of outliving this
+  // screen once it resolves.
+  stopLive();
   showScreen("calibration");
   startCalibration();
 });

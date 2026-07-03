@@ -40,6 +40,10 @@ describe("readSettingsForm", () => {
     expect(result.sensitivity).toBe(0.5);
   });
 
+  it("keeps a legitimate sensitivity of 0 rather than falling back to the default", () => {
+    expect(readSettingsForm(formElements("90", "0", "system")).sensitivity).toBe(0);
+  });
+
   it.each([
     "light",
     "dark",

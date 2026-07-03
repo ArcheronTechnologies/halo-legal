@@ -62,9 +62,20 @@ export function readSettingsForm(
   elements: Pick<SettingsScreenElements, "retentionDaysInput" | "sensitivityInput" | "themeSelect">,
 ): Pick<Settings, "retentionDays" | "sensitivity" | "theme"> {
   const theme = elements.themeSelect.value;
+  // `Number(v) || fallback` would clobber a legitimate 0 (e.g. sensitivity dragged to its
+  // minimum), since 0 is falsy — guard on finiteness instead so only actually-invalid input
+  // (empty string, non-numeric text -> NaN) falls back to the default.
+  const rawSensitivity = Number(elements.sensitivityInput.value);
+  const sensitivity = Number.isFinite(rawSensitivity)
+    ? Math.min(1, Math.max(0, rawSensitivity))
+    : 0.5;
+  const rawRetentionDays = Number(elements.retentionDaysInput.value);
+  const retentionDays = Number.isFinite(rawRetentionDays)
+    ? Math.max(1, Math.round(rawRetentionDays))
+    : 90;
   return {
-    retentionDays: Math.max(1, Math.round(Number(elements.retentionDaysInput.value) || 90)),
-    sensitivity: Math.min(1, Math.max(0, Number(elements.sensitivityInput.value) || 0.5)),
+    retentionDays,
+    sensitivity,
     theme: theme === "light" || theme === "dark" ? theme : "system",
   };
 }
