@@ -1,3 +1,4 @@
+import { clamp } from "@halo-pulse/dsp";
 import type { StressBand } from "./scoring/composite.js";
 
 const BAND_LABELS: Record<StressBand, string> = {
@@ -43,7 +44,7 @@ export function updateStressGauge(
   value: number,
   band: StressBand,
 ): void {
-  const clamped = Math.min(100, Math.max(0, value));
+  const clamped = clamp(value, 0, 100);
   elements.fillPath.style.strokeDashoffset = String(100 - clamped);
   elements.valueText.textContent = clamped.toFixed(0);
   elements.bandText.textContent = BAND_LABELS[band];

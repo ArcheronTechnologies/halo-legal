@@ -1,3 +1,4 @@
+import { clamp, clamp01 } from "@halo-pulse/dsp";
 import type { Baseline } from "@halo-pulse/types";
 import type { WindowFeatures } from "./features.js";
 
@@ -51,10 +52,6 @@ interface Candidate {
    * see PLAN.md §2.2 and ADR-0003. A fixed "up = stress" sign would be actively wrong here.
    */
   absoluteDeviation?: boolean;
-}
-
-function clamp(x: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, x));
 }
 
 function zScore(value: number, baselineMean: number, baselineSd: number): number {
@@ -158,7 +155,7 @@ export function computeStressIndex(current: WindowFeatures, baseline: Baseline):
   return {
     stressIndex,
     band: bandFor(stressIndex),
-    confidence: clamp(current.sqi, 0, 1),
+    confidence: clamp01(current.sqi),
     contributions,
   };
 }

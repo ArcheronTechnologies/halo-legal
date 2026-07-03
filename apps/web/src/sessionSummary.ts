@@ -1,8 +1,5 @@
+import { mean } from "@halo-pulse/dsp";
 import type { Sample, Session, SignalLayer } from "@halo-pulse/types";
-
-function mean(x: number[]): number {
-  return x.reduce((a, b) => a + b, 0) / x.length;
-}
 
 function median(x: number[]): number {
   const sorted = [...x].sort((a, b) => a - b);

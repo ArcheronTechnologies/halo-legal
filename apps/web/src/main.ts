@@ -54,6 +54,10 @@ const MIN_VALID_WINDOWS = 5;
 const SQI_FLOOR = 0.15; // below this, show "signal too weak" rather than a number
 const GAUGE_SMOOTHING_ALPHA = 0.3; // EMA weight for the newest reading (PLAN.md §6: smoothed index)
 
+function errText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 // --- DOM ---
 const consentScreen = document.getElementById("consentScreen") as HTMLElement;
 const calibrationScreen = document.getElementById("calibrationScreen") as HTMLElement;
@@ -216,7 +220,7 @@ function startCalibration(): void {
       }, 500);
     })
     .catch((err) => {
-      calibrationStatusEl.textContent = `Error: ${err instanceof Error ? err.message : String(err)}`;
+      calibrationStatusEl.textContent = `Error: ${errText(err)}`;
     });
 }
 
@@ -234,7 +238,7 @@ function finishCalibration(collector: CalibrationCollector): void {
       goToMain();
     })
     .catch((err) => {
-      calibrationStatusEl.textContent = `Error: ${err instanceof Error ? err.message : String(err)}`;
+      calibrationStatusEl.textContent = `Error: ${errText(err)}`;
     });
 }
 
@@ -297,7 +301,7 @@ async function startLive(): Promise<void> {
     });
   } catch (err) {
     if (runId === liveRunId) {
-      setStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      setStatus(`Error: ${errText(err)}`);
       startBtn.disabled = false;
     }
     return;
@@ -394,7 +398,10 @@ function stopLive(): void {
         return saveSession(db, summary, sessionSamples);
       })
       .then(() => showSelfReportPrompt(endedSessionId))
-      .catch((err) => console.error("failed to save session:", err));
+      .catch((err) => {
+        console.error("failed to save session:", err);
+        setStatus(`Couldn't save this session — ${errText(err)}`);
+      });
   }
 
   clearOverlay(overlayCtx, overlayEl.width, overlayEl.height);
@@ -477,7 +484,7 @@ selfReportSkipBtn.addEventListener("click", hideSelfReportPrompt);
 startBtn.addEventListener("click", () => {
   startLive().catch((err) => {
     console.error(err);
-    setStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    setStatus(`Error: ${errText(err)}`);
     startBtn.disabled = false;
   });
 });
@@ -546,7 +553,7 @@ settingsForm.addEventListener("submit", (ev) => {
       settingsElements.saveStatus.textContent = "Saved.";
     })
     .catch((err) => {
-      settingsElements.saveStatus.textContent = `Error: ${err instanceof Error ? err.message : String(err)}`;
+      settingsElements.saveStatus.textContent = `Error: ${errText(err)}`;
     });
 });
 
@@ -559,7 +566,10 @@ settingsElements.exportJsonBtn.addEventListener("click", () => {
         "application/json",
       );
     })
-    .catch((err) => console.error("export failed:", err));
+    .catch((err) => {
+      console.error("export failed:", err);
+      settingsElements.saveStatus.textContent = `Export failed — ${errText(err)}`;
+    });
 });
 
 settingsElements.exportCsvBtn.addEventListener("click", () => {
@@ -572,7 +582,10 @@ settingsElements.exportCsvBtn.addEventListener("click", () => {
       );
       downloadTextFile(`halo-pulse-samples-${Date.now()}.csv`, samplesToCsv(samples), "text/csv");
     })
-    .catch((err) => console.error("export failed:", err));
+    .catch((err) => {
+      console.error("export failed:", err);
+      settingsElements.saveStatus.textContent = `Export failed — ${errText(err)}`;
+    });
 });
 
 settingsElements.deleteAllBtn.addEventListener("click", () => {
@@ -582,14 +595,20 @@ settingsElements.deleteAllBtn.addEventListener("click", () => {
       showScreen("calibration");
       startCalibration();
     })
-    .catch((err) => console.error("delete failed:", err));
+    .catch((err) => {
+      console.error("delete failed:", err);
+      settingsElements.saveStatus.textContent = `Delete failed — ${errText(err)}`;
+    });
 });
 
 settingsElements.revokeConsentBtn.addEventListener("click", () => {
   if (!confirm("Revoke consent? You will need to consent again before using the camera.")) return;
   revokeConsent(db)
     .then(() => showScreen("consent"))
-    .catch((err) => console.error("revoke consent failed:", err));
+    .catch((err) => {
+      console.error("revoke consent failed:", err);
+      settingsElements.saveStatus.textContent = `Revoke consent failed — ${errText(err)}`;
+    });
 });
 
 // --- DL inference latency spike (PLAN.md §10 Phase 0, see dlInferenceSpike.ts) ---
@@ -609,7 +628,7 @@ dlSpikeBtn.addEventListener("click", () => {
         `(${result.minLatencyMs.toFixed(1)}-${result.maxLatencyMs.toFixed(1)}ms range, ${result.runs} runs)`;
     })
     .catch((err) => {
-      dlSpikeResult.textContent = `Error: ${err instanceof Error ? err.message : String(err)}`;
+      dlSpikeResult.textContent = `Error: ${errText(err)}`;
     })
     .finally(() => {
       dlSpikeBtn.disabled = false;
@@ -618,5 +637,5 @@ dlSpikeBtn.addEventListener("click", () => {
 
 boot().catch((err) => {
   console.error("boot failed:", err);
-  setStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
+  setStatus(`Error: ${errText(err)}`);
 });

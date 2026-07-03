@@ -1,3 +1,4 @@
+import { clamp } from "@halo-pulse/dsp";
 import type { HeatmapCell } from "./heatmap.js";
 
 /**
@@ -23,7 +24,7 @@ const SEQUENTIAL_BLUE_RAMP = [
 ];
 
 function colorForValue(value: number): string {
-  const clamped = Math.min(100, Math.max(0, value));
+  const clamped = clamp(value, 0, 100);
   const index = Math.round((clamped / 100) * (SEQUENTIAL_BLUE_RAMP.length - 1));
   return SEQUENTIAL_BLUE_RAMP[index] ?? SEQUENTIAL_BLUE_RAMP[0] ?? "#cde2fb";
 }

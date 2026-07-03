@@ -1,3 +1,4 @@
+import { mean } from "@halo-pulse/dsp";
 import type { Session } from "@halo-pulse/types";
 
 /**
@@ -14,10 +15,6 @@ export interface SelfReportInsight {
    * variance to correlate). This is a transparency figure, not a trained/validated model — see
    * PLAN.md §10 Phase 3 notes on what full adaptive personalization would require. */
   correlation: number | null;
-}
-
-function mean(values: number[]): number {
-  return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
 /** Pearson correlation coefficient between the app's computed index and the user's own ratings,

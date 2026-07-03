@@ -1,16 +1,6 @@
+import { mean, std } from "@halo-pulse/dsp";
 import type { Baseline, CaptureConditions } from "@halo-pulse/types";
 import type { WindowFeatures } from "./features.js";
-
-function mean(x: number[]): number {
-  return x.reduce((a, b) => a + b, 0) / x.length;
-}
-
-function sampleStd(x: number[]): number {
-  if (x.length < 2) return 0;
-  const m = mean(x);
-  const sumSq = x.reduce((a, v) => a + (v - m) ** 2, 0);
-  return Math.sqrt(sumSq / (x.length - 1));
-}
 
 export interface BaselineMeta {
   id: string;
@@ -48,21 +38,21 @@ export function computeBaselineFromSamples(
     capturedAt: meta.capturedAt,
     version: meta.version ?? 1,
     hrMean: mean(hrValues),
-    hrSd: sampleStd(hrValues),
+    hrSd: std(hrValues, 1),
     rmssdMean: rmssdValues.length > 0 ? mean(rmssdValues) : 0,
-    rmssdSd: rmssdValues.length > 0 ? sampleStd(rmssdValues) : 0,
+    rmssdSd: rmssdValues.length > 0 ? std(rmssdValues, 1) : 0,
     sdnnMean: sdnnValues.length > 0 ? mean(sdnnValues) : 0,
-    sdnnSd: sdnnValues.length > 0 ? sampleStd(sdnnValues) : 0,
+    sdnnSd: sdnnValues.length > 0 ? std(sdnnValues, 1) : 0,
     lfhfMean: lfhfValues.length > 0 ? mean(lfhfValues) : null,
-    lfhfSd: lfhfValues.length > 0 ? sampleStd(lfhfValues) : null,
+    lfhfSd: lfhfValues.length > 0 ? std(lfhfValues, 1) : null,
     blinkRateMean: mean(blinkValues),
-    blinkRateSd: sampleStd(blinkValues),
+    blinkRateSd: std(blinkValues, 1),
     browTensionMean: mean(browValues),
-    browTensionSd: sampleStd(browValues),
+    browTensionSd: std(browValues, 1),
     lidTensionMean: mean(lidValues),
-    lidTensionSd: sampleStd(lidValues),
+    lidTensionSd: std(lidValues, 1),
     lipTensionMean: mean(lipValues),
-    lipTensionSd: sampleStd(lipValues),
+    lipTensionSd: std(lipValues, 1),
     windowCount: features.length,
     captureConditions: meta.captureConditions ?? {},
   };

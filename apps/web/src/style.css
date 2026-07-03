@@ -55,6 +55,15 @@ body {
   color: var(--text-primary);
 }
 
+/* An author-stylesheet rule that sets `display` on an element at equal specificity beats the UA
+ * stylesheet's default `[hidden] { display: none }`, so `.hidden = true` alone would silently
+ * stop hiding the moment that element also gets its own `display` declaration. One global,
+ * `!important` rule makes `[hidden]` authoritative everywhere instead of requiring every such
+ * element to carry its own `<selector>[hidden]` override. */
+[hidden] {
+  display: none !important;
+}
+
 /* Standard "sr-only" technique: present to assistive tech, removed from visual layout without
  * `display:none`/`visibility:hidden`, which would also remove it from the accessibility tree. */
 .visually-hidden {
@@ -91,10 +100,6 @@ h2 {
 
 .screen {
   display: block;
-}
-
-.screen[hidden] {
-  display: none;
 }
 
 .consent-points {
@@ -260,15 +265,6 @@ button:disabled {
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border);
-}
-
-/* An explicit `display` above an equal-specificity `[hidden]` selector wins the UA stylesheet's
- * default `[hidden] { display: none }` rule at author-vs-UA level, so `.hidden = true` alone
- * would silently stop working the moment an element gets its own `display` declaration —
- * restated explicitly here and by every other `display`-bearing element that gets toggled via
- * the `hidden` attribute (see `.breathing-exercise[hidden]` below). */
-.app-nav[hidden] {
-  display: none;
 }
 
 .nav-btn {
@@ -540,10 +536,6 @@ button.danger {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-}
-
-.breathing-exercise[hidden] {
-  display: none;
 }
 
 .breathing-circle-wrap {
